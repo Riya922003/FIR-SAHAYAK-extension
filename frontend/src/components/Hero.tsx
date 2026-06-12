@@ -7,7 +7,7 @@ import '../styles/landing.css';
    ────────────────────────────────────────────────────────── */
 const SLIDES = [
   { src: '/hero1.jpg', alt: 'UP Police Headquarters — Lucknow' },
-  { src: '/hero2.jpg', alt: 'Digital India — A SMART Policing Initiative by Ministry of Home Affairs' },
+  { src: '/hero2.jpg', alt: 'UP ATS — Anti-Terrorist Squad tactical training' },
   { src: '/hero3.jpg', alt: 'UP Police — Tactical Operations' },
   { src: '/hero4.jpg', alt: 'UP Police — Urban Security Operations' },
 ];
