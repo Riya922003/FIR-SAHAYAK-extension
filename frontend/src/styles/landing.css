@@ -218,45 +218,38 @@ span.slider-next:hover {
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
-  padding: 0.7vw 1.2vw;
+  padding: 0.5vw 1vw;
   overflow: hidden;
-  width: 62%;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 50px;
-  backdrop-filter: blur(4px);
+  width: 72%;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
 }
 
 #moving-div .move {
   display: inline-flex;
   align-items: center;
-  animation: mobe 14s linear infinite;
+  animation: mobe 18s linear infinite;
   will-change: transform;
+  gap: 0;
 }
 
+/* Real police badge/logo images — uniform height, natural width */
 #moving-div .move .ticker-logo {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 3vw;
-  height: 3vw;
-  margin: 0 1.2vw;
-  border-radius: 50%;
-  background: #1e4d8c;
-  color: #fff;
-  font-size: 0.6vw;
-  font-weight: 800;
-  border: 2px solid rgba(255, 255, 255, 0.7);
+  height: 3.5vw;
+  width: auto;
+  max-width: 12vw;
+  margin: 0 1.5vw;
+  object-fit: contain;
+  vertical-align: middle;
   flex-shrink: 0;
-  text-align: center;
-  line-height: 1.1;
-  padding: 2px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.12));
 }
 
 /*
-  FIX for "going blank": original animated -100% so after one cycle
-  everything slid off and snapped back (visible blank flash).
-  Fix: duplicate the items array so total width is 2x,
-  then animate only -50% (= one full set width). Seamless loop.
+  Seamless loop: items are duplicated so total width = 2×.
+  Animate only -50% so it loops back to the identical midpoint.
 */
 @keyframes mobe {
   0%   { transform: translateX(0); }

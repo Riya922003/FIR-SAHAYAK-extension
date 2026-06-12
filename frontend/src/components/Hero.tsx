@@ -2,34 +2,27 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import '../styles/landing.css';
 
 /* ──────────────────────────────────────────────────────────
-   Slider images sourced from real Indian police portals
-   (uppolice.gov.in + digitalpolice.gov.in)
+   Hero slider images — sourced from uppolice.gov.in
    ────────────────────────────────────────────────────────── */
 const SLIDES = [
   { src: '/hero1.jpg', alt: 'UP Police Headquarters — Lucknow' },
-  { src: '/hero2.jpg', alt: 'UP ATS — Anti-Terrorist Squad tactical training' },
-  { src: '/hero3.jpg', alt: 'UP Police — Tactical Operations' },
+  { src: '/hero3.jpg', alt: 'UP Police — Tactical Field Operations' },
   { src: '/hero4.jpg', alt: 'UP Police — Urban Security Operations' },
 ];
 
 /* ──────────────────────────────────────────────────────────
-   Police logos ticker
-   Items are DUPLICATED so the -50% keyframe loops seamlessly
-   (original bug: single set animated to -100% → blank flash on wrap)
+   Real state police badge logos (downloaded from official sites)
+   Duplicated so the mobe animation loops at -50% without a blank gap
    ────────────────────────────────────────────────────────── */
 const BASE_LOGOS = [
-  { abbr: 'DP',   name: 'Delhi Police' },
-  { abbr: 'MP',   name: 'Maharashtra Police' },
-  { abbr: 'RP',   name: 'Rajasthan Police' },
-  { abbr: 'TN',   name: 'Tamil Nadu Police' },
-  { abbr: 'KP',   name: 'Karnataka Police' },
-  { abbr: 'PP',   name: 'Punjab Police' },
-  { abbr: 'GP',   name: 'Gujarat Police' },
-  { abbr: 'UP',   name: 'Uttar Pradesh Police' },
-  { abbr: 'AP',   name: 'Andhra Pradesh Police' },
-  { abbr: 'HP',   name: 'Haryana Police' },
+  { src: '/police/maharashtra.png', alt: 'Maharashtra Police' },
+  { src: '/police/westbengal.png',  alt: 'West Bengal Police' },
+  { src: '/police/telangana.webp',  alt: 'Telangana Police' },
+  { src: '/police/mp.png',          alt: 'Madhya Pradesh Police' },
+  { src: '/police/delhi.png',       alt: 'Delhi Police' },
+  { src: '/police/up2.png',         alt: 'Uttar Pradesh Police' },
+  { src: '/police/haryana.png',     alt: 'Haryana Police' },
 ];
-// Duplicate for infinite seamless scroll
 const TICKER_LOGOS = [...BASE_LOGOS, ...BASE_LOGOS];
 
 export default function Hero() {
@@ -40,7 +33,7 @@ export default function Hero() {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setCurrent(prev => (prev + 1) % SLIDES.length);
-    }, 4000);
+    }, 4500);
   }, []);
 
   useEffect(() => {
@@ -48,20 +41,9 @@ export default function Hero() {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [resetTimer]);
 
-  const goNext = () => {
-    setCurrent(prev => (prev + 1) % SLIDES.length);
-    resetTimer();
-  };
-
-  const goPrev = () => {
-    setCurrent(prev => (prev - 1 + SLIDES.length) % SLIDES.length);
-    resetTimer();
-  };
-
-  const goTo = (idx: number) => {
-    setCurrent(idx);
-    resetTimer();
-  };
+  const goNext = () => { setCurrent(prev => (prev + 1) % SLIDES.length); resetTimer(); };
+  const goPrev = () => { setCurrent(prev => (prev - 1 + SLIDES.length) % SLIDES.length); resetTimer(); };
+  const goTo   = (idx: number) => { setCurrent(idx); resetTimer(); };
 
   return (
     <section id="page1">
@@ -75,39 +57,35 @@ export default function Hero() {
               src={slide.src}
               alt={slide.alt}
               className={i === current ? 'active' : ''}
-              data-loaded="true"
             />
           ))}
         </div>
 
-        {/* Arrows */}
         <span className="slider-prev" onClick={goPrev}>&#10094;</span>
         <span className="slider-next" onClick={goNext}>&#10095;</span>
 
-        {/* Dots */}
         <div className="dotsContainer">
           {SLIDES.map((_, i) => (
-            <span
+            <span key={i} className={`dot${i === current ? ' active' : ''}`} onClick={() => goTo(i)} />
+          ))}
+        </div>
+      </div>
+
+      {/* ── Police logo ticker — real badge images ── */}
+      <div id="moving-div">
+        <div className="move">
+          {TICKER_LOGOS.map((logo, i) => (
+            <img
               key={i}
-              className={`dot${i === current ? ' active' : ''}`}
-              onClick={() => goTo(i)}
+              src={logo.src}
+              alt={logo.alt}
+              className="ticker-logo"
+              title={logo.alt}
             />
           ))}
         </div>
       </div>
 
-      {/* ── Police logos ticker ── */}
-      <div id="moving-div">
-        <div className="move">
-          {TICKER_LOGOS.map((logo, i) => (
-            <span key={i} className="ticker-logo" title={logo.name}>
-              {logo.abbr}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Fade overlays (left / right of page) */}
       <div id="blur-left" />
       <div id="blur-right" />
     </section>
