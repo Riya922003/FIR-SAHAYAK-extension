@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import '../styles/landing.css';
 
 /* ──────────────────────────────────────────────────────────
-   Slider images — copied from legacy/ to public/
+   Slider images sourced from real Indian police portals
+   (uppolice.gov.in + digitalpolice.gov.in)
    ────────────────────────────────────────────────────────── */
 const SLIDES = [
-  { src: '/slide1.png', alt: 'Ministry of Home Affairs — Government of India' },
-  { src: '/slide2.png', alt: 'FIR Sahayak — Digital Police Portal' },
-  { src: '/slide3.png', alt: 'Safe India — File FIR Online' },
+  { src: '/hero1.jpg', alt: 'UP Police Headquarters — Lucknow' },
+  { src: '/hero2.jpg', alt: 'Digital India — A SMART Policing Initiative by Ministry of Home Affairs' },
+  { src: '/hero3.jpg', alt: 'UP Police — Tactical Operations' },
+  { src: '/hero4.jpg', alt: 'UP Police — Urban Security Operations' },
 ];
 
 /* ──────────────────────────────────────────────────────────
