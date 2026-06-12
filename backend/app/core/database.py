@@ -22,8 +22,13 @@ AsyncSessionLocal = sessionmaker(
 
 async def init_db():
     """Create all tables on startup (dev only — use Alembic in production)."""
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+        print("[OK] Database tables created / verified.")
+    except Exception as e:
+        print(f"[WARNING] Could not connect to database: {e}")
+        print("   Set a real DATABASE_URL in your .env to enable DB features.")
 
 
 async def get_session() -> AsyncSession:

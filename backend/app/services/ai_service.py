@@ -1,9 +1,8 @@
-import google.generativeai as genai
+import httpx
 from app.core.config import settings
 
-genai.configure(api_key=settings.GOOGLE_API_KEY)
-
-model = genai.GenerativeModel("gemini-1.5-flash")
+# Gemini REST API — no grpcio needed, fully async via httpx
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
 
 SYSTEM_PROMPT = """You are a helpful legal assistant for FIR Sahayak, an online FIR filing platform in India.
 Your role is to:
@@ -19,16 +18,33 @@ Do NOT provide legal advice beyond FIR filing guidance.
 """
 
 
+async def _call_gemini(contents: list[dict]) -> str:
+    """Core helper — calls Gemini REST API via httpx (async, no grpcio)."""
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": SYSTEM_PROMPT}]
+        },
+        "contents": contents,
+    }
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.post(
+            GEMINI_URL,
+            params={"key": settings.GOOGLE_API_KEY},
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+        return data["candidates"][0]["content"]["parts"][0]["text"]
+
+
 async def get_ai_response(user_message: str, history: list[dict]) -> str:
     """
     Get a response from Gemini with full conversation history.
     history format: [{"role": "user"|"model", "parts": [{"text": "..."}]}]
     """
-    chat = model.start_chat(history=history)
-    response = await chat.send_message_async(
-        f"{SYSTEM_PROMPT}\n\nUser: {user_message}"
-    )
-    return response.text
+    # Append the new user message to history
+    contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
+    return await _call_gemini(contents)
 
 
 async def suggest_ipc_sections(description: str) -> str:
@@ -36,15 +52,14 @@ async def suggest_ipc_sections(description: str) -> str:
     Given a complaint description, suggest relevant IPC sections.
     Used during FIR filing to auto-suggest legal sections.
     """
-    prompt = f"""
-    Based on this FIR complaint description, suggest the most relevant IPC (Indian Penal Code) sections.
-    Return ONLY the section numbers and brief descriptions, no other text.
+    prompt = f"""Based on this FIR complaint description, suggest the most relevant IPC (Indian Penal Code) sections.
+Return ONLY the section numbers and brief descriptions, no other text.
 
-    Complaint: {description}
+Complaint: {description}
 
-    Format your response as:
-    Section X - [brief description]
-    Section Y - [brief description]
-    """
-    response = model.generate_content(prompt)
-    return response.text
+Format your response as:
+Section X - [brief description]
+Section Y - [brief description]"""
+
+    contents = [{"role": "user", "parts": [{"text": prompt}]}]
+    return await _call_gemini(contents)

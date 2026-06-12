@@ -18,8 +18,8 @@ python-multipart>=0.0.9
 python-dotenv>=1.0.0
 pydantic-settings>=2.2.0
 
-# AI
-google-generativeai>=0.5.0
+# AI — using Gemini REST API via httpx (avoids grpcio DLL issues on Windows)
+# google-generativeai is NOT needed; we call the REST endpoint directly
 
 # PDF generation
 reportlab>=4.1.0

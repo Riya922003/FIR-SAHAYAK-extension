@@ -1,0 +1,46 @@
+.preview {
+    color: #555;
+    width: 100%;
+    text-align: center;
+    height: 40px;
+    line-height: 40px;
+    letter-spacing: 8px;
+    border: 1px solid;
+}
+
+.preview span {
+    display: inline-block;
+    user-select: none;
+}
+
+.captcha-form {
+    display: flex;
+    width: 100%;
+}
+
+#captha-form {
+    display:flex;
+    margin-top: 15px;
+    border: 1px solid #888;
+}
+
+.captcha-form .captcha-refresh {
+    width: 40px;
+    border: none;
+    outline: none;
+    background: #888;
+    color: #eee;
+    cursor: pointer;
+}
+
+#login-btn {
+    margin-top: 12px;
+    padding: 10px;
+    border: none;
+    outline: none;
+    text-transform: uppercase;
+    background: #4c81ff;
+    color: #fff;
+    cursor: pointer;
+
+}
