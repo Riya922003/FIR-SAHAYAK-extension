@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import '../styles/landing.css';
 
 const NAV_LINKS = [
@@ -8,6 +10,23 @@ const NAV_LINKS = [
 ];
 
 export default function Navbar() {
+  const navigate = useNavigate();
+  const { user, logout, isAuthenticated } = useAuth();
+
+  const handleAuthClick = () => {
+    if (isAuthenticated) {
+      logout();
+      navigate('/');
+    } else {
+      navigate('/login');
+    }
+  };
+
+  // If already logged in, clicking brand name goes to dashboard
+  const handleBrandClick = () => {
+    if (isAuthenticated) navigate('/dashboard');
+  };
+
   return (
     <nav className="fir-nav">
       {/* Brand name */}
@@ -20,25 +39,19 @@ export default function Navbar() {
         ))}
       </div>
 
-      {/* Login / Sign-Up button */}
-      <button className="nav-login-btn">
-        Login / Sign-Up
+      {/* Auth button — shows name + logout when logged in */}
+      <button className="nav-login-btn" onClick={handleAuthClick}>
+        {isAuthenticated
+          ? `Hi, ${user?.full_name.split(' ')[0]} · Logout`
+          : 'Login / Sign-Up'}
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
       </button>
 
-      {/*
-        Satyamev Jayte — Ashoka Emblem of India
-        Positioned absolutely at top-right of the fixed navbar
-        exactly as in the original .logo-container
-      */}
-      {/* Satyamev Jayte emblem served from /public/emblem.svg */}
+      {/* Satyamev Jayte emblem */}
       <div className="logo-container">
-        <img
-          src="/emblem.svg"
-          alt="Satyamev Jayte"
-        />
+        <img src="/emblem.svg" alt="Satyamev Jayte" />
       </div>
     </nav>
   );

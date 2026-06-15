@@ -1,0 +1,236 @@
+/* ============================================================
+   FIR Sahayak — Auth Pages (Login / Register)
+   ============================================================ */
+
+.auth-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #fff8f0 0%, #ffffff 50%, #f0fff4 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Brand header above card ── */
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.75rem;
+  text-decoration: none;
+}
+
+.auth-brand-bar {
+  width: 4px;
+  height: 44px;
+  background: linear-gradient(to bottom, #ff9933 33%, #ffffff 33%, #ffffff 66%, #138808 66%);
+  border-radius: 2px;
+  border: 1px solid #ddd;
+}
+
+.auth-brand-text h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.auth-brand-text span {
+  font-size: 0.78rem;
+  color: #777;
+  letter-spacing: 0.02em;
+}
+
+/* ── Card ── */
+.auth-card {
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.1);
+  padding: 2.5rem 2.25rem;
+  width: 100%;
+  max-width: 480px;
+  border: 1px solid #f0f0f0;
+}
+
+.auth-card h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 0.3rem;
+}
+
+.auth-subtitle {
+  font-size: 0.875rem;
+  color: #777;
+  margin: 0 0 1.75rem;
+}
+
+/* ── Test credentials banner ── */
+.test-creds-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fffbea;
+  border: 1px dashed #f0c040;
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
+  color: #7a5c00;
+}
+
+.test-creds-btn {
+  background: #f0c040;
+  border: none;
+  border-radius: 20px;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #3a2c00;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.test-creds-btn:hover {
+  background: #e0b030;
+  transform: scale(1.04);
+}
+
+/* ── Error banner ── */
+.auth-error {
+  background: #fff5f5;
+  border: 1px solid #fcc;
+  color: #c62828;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Form ── */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.form-group label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.form-group input {
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #111;
+  background: #fafafa;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  border-color: rgb(30, 201, 144);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(30, 201, 144, 0.12);
+}
+
+.form-group input::placeholder {
+  color: #bbb;
+}
+
+/* ── Submit button ── */
+.auth-submit-btn {
+  background-color: rgb(30, 201, 144);
+  color: #111;
+  border: none;
+  border-radius: 50px;
+  padding: 0.875rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.15s;
+  margin-top: 0.5rem;
+  width: 100%;
+}
+
+.auth-submit-btn:hover:not(:disabled) {
+  background-color: #13c47f;
+  transform: scale(1.02);
+}
+
+.auth-submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.auth-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Footer link ── */
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.875rem;
+  color: #666;
+}
+
+.auth-footer a {
+  color: rgb(30, 201, 144);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ── Back to home link ── */
+.auth-back {
+  font-size: 0.8rem;
+  color: #999;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 1.25rem;
+  transition: color 0.2s;
+}
+
+.auth-back:hover {
+  color: #555;
+}
+
+/* ── Responsive ── */
+@media (max-width: 520px) {
+  .auth-card {
+    padding: 2rem 1.25rem;
+  }
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,146 @@
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+export type FIRStatus =
+  | 'DRAFT' | 'SUBMITTED' | 'ACKNOWLEDGED'
+  | 'UNDER_INVESTIGATION' | 'RESOLVED' | 'REJECTED'
+  | 'CLOSED' | 'ESCALATED';
+
+export type IncidentType =
+  | 'THEFT' | 'ASSAULT' | 'MISSING_PERSON' | 'SEXUAL_ASSAULT'
+  | 'HIT_AND_RUN' | 'FRAUD' | 'CYBER_CRIME' | 'PROPERTY_DAMAGE'
+  | 'DOMESTIC_VIOLENCE' | 'OTHER';
+
+export interface FIR {
+  id: string;
+  fir_number: string;
+  status: FIRStatus;
+  incident_type: IncidentType;
+  description: string;
+  incident_location: string;
+  incident_date: string;
+  incident_time?: string;
+  complainant_name: string;
+  complainant_address: string;
+  complainant_phone: string;
+  witness_info?: string;
+  station_id: string;
+  reapply_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StatusHistoryItem {
+  previous_status?: FIRStatus;
+  new_status: FIRStatus;
+  notes?: string;
+  changed_at: string;
+  changed_by: string;
+}
+
+export interface FIRDetail extends FIR {
+  status_history: StatusHistoryItem[];
+}
+
+export interface PoliceStation {
+  id: string;
+  name: string;
+  district: string;
+  state: string;
+  address: string;
+  phone?: string;
+}
+
+export interface FileFIRPayload {
+  station_id: string;
+  incident_type: IncidentType;
+  description: string;
+  incident_location: string;
+  incident_date: string;
+  incident_time?: string;
+  complainant_name: string;
+  complainant_father_name?: string;
+  complainant_address: string;
+  complainant_phone: string;
+  witness_info?: string;
+}
+
+const authH = (token: string) => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+});
+
+export async function getMyFIRs(token: string): Promise<FIR[]> {
+  const res = await fetch(`${API_URL}/api/v1/fir/my`, { headers: authH(token) });
+  if (!res.ok) throw new Error('Failed to fetch FIRs');
+  return res.json();
+}
+
+export async function getFIRDetail(token: string, id: string): Promise<FIRDetail> {
+  const res = await fetch(`${API_URL}/api/v1/fir/${id}`, { headers: authH(token) });
+  if (!res.ok) throw new Error('Failed to fetch FIR detail');
+  return res.json();
+}
+
+export async function fileFIR(token: string, payload: FileFIRPayload): Promise<FIR> {
+  const res = await fetch(`${API_URL}/api/v1/fir`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to file FIR');
+  return data;
+}
+
+export async function cancelFIR(token: string, id: string): Promise<FIR> {
+  const res = await fetch(`${API_URL}/api/v1/fir/${id}/cancel`, {
+    method: 'POST',
+    headers: authH(token),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to cancel FIR');
+  return data;
+}
+
+export async function getStations(token: string): Promise<PoliceStation[]> {
+  const res = await fetch(`${API_URL}/api/v1/admin/stations`, { headers: authH(token) });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+// ── Display helpers ───────────────────────────────────────────────────────────
+
+export const STATUS_LABELS: Record<FIRStatus, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  ACKNOWLEDGED: 'Acknowledged',
+  UNDER_INVESTIGATION: 'Under Investigation',
+  RESOLVED: 'Resolved',
+  REJECTED: 'Rejected',
+  CLOSED: 'Closed',
+  ESCALATED: 'Escalated',
+};
+
+export const STATUS_COLORS: Record<FIRStatus, string> = {
+  DRAFT: '#9e9e9e',
+  SUBMITTED: '#f59e0b',
+  ACKNOWLEDGED: '#3b82f6',
+  UNDER_INVESTIGATION: '#1d4ed8',
+  RESOLVED: '#22c55e',
+  REJECTED: '#ef4444',
+  CLOSED: '#64748b',
+  ESCALATED: '#f97316',
+};
+
+export const INCIDENT_LABELS: Record<IncidentType, string> = {
+  THEFT: 'Theft',
+  ASSAULT: 'Assault',
+  MISSING_PERSON: 'Missing Person',
+  SEXUAL_ASSAULT: 'Sexual Assault',
+  HIT_AND_RUN: 'Hit & Run',
+  FRAUD: 'Fraud',
+  CYBER_CRIME: 'Cyber Crime',
+  PROPERTY_DAMAGE: 'Property Damage',
+  DOMESTIC_VIOLENCE: 'Domestic Violence',
+  OTHER: 'Other',
+};
