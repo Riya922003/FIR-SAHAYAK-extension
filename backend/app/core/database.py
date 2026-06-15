@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 
 # Create async engine — works with Neon's asyncpg driver
@@ -31,7 +32,7 @@ async def init_db():
         print("   Set a real DATABASE_URL in your .env to enable DB features.")
 
 
-async def get_session() -> AsyncSession:
+async def get_session():
     """FastAPI dependency — yields a DB session per request."""
     async with AsyncSessionLocal() as session:
         try:
