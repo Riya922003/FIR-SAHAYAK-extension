@@ -13,6 +13,7 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.models.fir import PoliceStation
+from app.models.enums import UserRole
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -20,6 +21,7 @@ from app.schemas.auth import (
     UserResponse,
     RefreshTokenRequest,
     StationSetRequest,
+    DistrictSetRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -103,6 +105,24 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me/district", response_model=UserResponse)
+async def set_my_district(
+    payload: DistrictSetRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Higher authority sets their district scope on first login. Locked once set."""
+    if current_user.role != UserRole.HIGHER_AUTHORITY:
+        raise HTTPException(status_code=403, detail="Only higher authority users can set a district")
+    if current_user.district is not None:
+        raise HTTPException(status_code=400, detail="District already set. Contact admin to change it.")
+    current_user.district = payload.district.strip()
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
     return current_user
 
 

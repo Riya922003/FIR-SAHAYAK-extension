@@ -23,6 +23,18 @@ export interface User {
   role: string;
   is_active: boolean;
   station_id: string | null;
+  district: string | null;
+}
+
+export async function setMyDistrict(token: string, district: string): Promise<User> {
+  const res = await fetch(`${API_URL}/api/v1/auth/me/district`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ district }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to set district');
+  return data;
 }
 
 export async function setMyStation(token: string, station_id: string): Promise<User> {

@@ -25,5 +25,8 @@ class User(SQLModel, table=True):
     # For officers — which station they belong to (FK set in fir.py to avoid circular import)
     station_id: Optional[str] = Field(default=None, foreign_key="police_stations.id")
 
+    # For higher_authority — which district they oversee
+    district: Optional[str] = Field(default=None)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

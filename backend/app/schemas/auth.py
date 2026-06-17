@@ -7,6 +7,10 @@ class StationSetRequest(BaseModel):
     station_id: str
 
 
+class DistrictSetRequest(BaseModel):
+    district: str = Field(min_length=2, max_length=100)
+
+
 # ── Request schemas ───────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
@@ -47,6 +51,7 @@ class UserResponse(BaseModel):
     role: UserRole
     is_active: bool
     station_id: Optional[str] = None
+    district: Optional[str] = None
 
     class Config:
         from_attributes = True

@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import OfficerDashboard from './pages/OfficerDashboard';
+import AuthorityDashboard from './pages/AuthorityDashboard';
 import { Component, ReactNode } from 'react';
 
 /* ── Error Boundary — catches render errors and shows them instead of blank ── */
@@ -40,13 +41,18 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 
-const OFFICER_ROLES = ['officer', 'station_admin', 'higher_authority'];
+function getHomeRoute(role: string): string {
+  if (role === 'higher_authority') return '/authority';
+  if (role === 'officer' || role === 'station_admin') return '/officer';
+  return '/dashboard';
+}
 
-function ProtectedRoute({ children, requireOfficer = false }: { children: ReactNode; requireOfficer?: boolean }) {
+function ProtectedRoute({ children, allowedRoles }: { children: ReactNode; allowedRoles: string[] }) {
   const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
-  if (requireOfficer && user && !OFFICER_ROLES.includes(user.role)) return <Navigate to="/dashboard" replace />;
-  if (!requireOfficer && user && OFFICER_ROLES.includes(user.role)) return <Navigate to="/officer" replace />;
+  if (user && !allowedRoles.includes(user.role)) {
+    return <Navigate to={getHomeRoute(user.role)} replace />;
+  }
   return <>{children}</>;
 }
 
@@ -59,7 +65,7 @@ function AppRoutes() {
       <Route
         path="/dashboard"
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={['citizen']}>
             <ErrorBoundary>
               <CitizenDashboard />
             </ErrorBoundary>
@@ -69,9 +75,19 @@ function AppRoutes() {
       <Route
         path="/officer"
         element={
-          <ProtectedRoute requireOfficer>
+          <ProtectedRoute allowedRoles={['officer', 'station_admin']}>
             <ErrorBoundary>
               <OfficerDashboard />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/authority"
+        element={
+          <ProtectedRoute allowedRoles={['higher_authority']}>
+            <ErrorBoundary>
+              <AuthorityDashboard />
             </ErrorBoundary>
           </ProtectedRoute>
         }

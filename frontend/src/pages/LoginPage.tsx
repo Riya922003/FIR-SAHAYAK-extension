@@ -6,13 +6,11 @@ import '../styles/auth.css';
 
 type LoginRole = 'citizen' | 'officer' | 'authority';
 
-const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegister: boolean; hint?: string; testCreds?: { email: string; password: string } }> = {
-  citizen:   { label: 'Citizen',           subtitle: 'File and track your FIR complaints',              showRegister: true,  testCreds: { email: 'riya@test.com',  password: 'Test@1234'  } },
-  officer:   { label: 'Police Officer',    subtitle: 'Manage and resolve FIRs at your station',         showRegister: false, testCreds: { email: 'riya@work.com',  password: 'Riya@@2003' } },
-  authority: { label: 'Higher Authority',  subtitle: 'Oversight portal for escalated cases',            showRegister: false },
+const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegister: boolean; testCreds?: { email: string; password: string } }> = {
+  citizen:   { label: 'Citizen',          subtitle: 'File and track your FIR complaints',                 showRegister: true,  testCreds: { email: 'riya@test.com',      password: 'Test@1234'  } },
+  officer:   { label: 'Police Officer',   subtitle: 'Manage and resolve FIRs at your station',            showRegister: false, testCreds: { email: 'riya@work.com',      password: 'Riya@@2003' } },
+  authority: { label: 'Higher Authority', subtitle: 'District-level oversight and escalation management',  showRegister: false, testCreds: { email: 'riya98012@work.com', password: 'Riya@@2003' } },
 };
-
-const OFFICER_ROLES = ['officer', 'station_admin', 'higher_authority'];
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -43,17 +41,25 @@ export default function LoginPage() {
       const userRole = data.user.role;
 
       // Guard: warn if the selected portal doesn't match the account role
-      if (selectedRole === 'citizen' && OFFICER_ROLES.includes(userRole)) {
-        setError('This account is not a citizen account. Please select the correct portal above.');
+      if (selectedRole === 'citizen' && userRole !== 'citizen') {
+        setError('This is not a citizen account. Please select the correct portal above.');
         return;
       }
-      if (selectedRole !== 'citizen' && userRole === 'citizen') {
-        setError('This is a citizen account. Please use the Citizen portal.');
+      if (selectedRole === 'officer' && !['officer', 'station_admin'].includes(userRole)) {
+        setError(userRole === 'higher_authority'
+          ? 'This is a Higher Authority account. Please use the Higher Authority portal.'
+          : 'This is a citizen account. Please use the Citizen portal.');
+        return;
+      }
+      if (selectedRole === 'authority' && userRole !== 'higher_authority') {
+        setError('This is not a Higher Authority account. Please select the correct portal above.');
         return;
       }
 
       login(data.access_token, data.refresh_token, data.user);
-      if (OFFICER_ROLES.includes(userRole)) {
+      if (userRole === 'higher_authority') {
+        navigate('/authority');
+      } else if (userRole === 'officer' || userRole === 'station_admin') {
         navigate('/officer');
       } else {
         navigate('/dashboard');
