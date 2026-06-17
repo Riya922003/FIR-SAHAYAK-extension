@@ -6,10 +6,10 @@ import '../styles/auth.css';
 
 type LoginRole = 'citizen' | 'officer' | 'authority';
 
-const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegister: boolean; hint?: string }> = {
-  citizen:   { label: 'Citizen',           subtitle: 'File and track your FIR complaints',              showRegister: true  },
-  officer:   { label: 'Police Officer',    subtitle: 'Manage and resolve FIRs at your station',         showRegister: false, hint: 'Credentials are provided by your Station Admin.' },
-  authority: { label: 'Higher Authority',  subtitle: 'Oversight portal for escalated cases',            showRegister: false, hint: 'Credentials are provided by the system administrator.' },
+const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegister: boolean; hint?: string; testCreds?: { email: string; password: string } }> = {
+  citizen:   { label: 'Citizen',           subtitle: 'File and track your FIR complaints',              showRegister: true,  testCreds: { email: 'riya@test.com',  password: 'Test@1234'  } },
+  officer:   { label: 'Police Officer',    subtitle: 'Manage and resolve FIRs at your station',         showRegister: false, testCreds: { email: 'riya@work.com',  password: 'Riya@@2003' } },
+  authority: { label: 'Higher Authority',  subtitle: 'Oversight portal for escalated cases',            showRegister: false },
 };
 
 const OFFICER_ROLES = ['officer', 'station_admin', 'higher_authority'];
@@ -93,8 +93,17 @@ export default function LoginPage() {
         <h2>Welcome back</h2>
         <p className="auth-subtitle">{config.subtitle}</p>
 
-        {config.hint && (
-          <div className="auth-hint">ℹ {config.hint}</div>
+        {config.testCreds && (
+          <div className="test-creds-banner">
+            <span>🧪 Testing?</span>
+            <button
+              type="button"
+              className="test-creds-btn"
+              onClick={() => { setForm(config.testCreds!); setError(''); }}
+            >
+              Fill test credentials
+            </button>
+          </div>
         )}
 
         {error && <div className="auth-error">⚠ {error}</div>}
