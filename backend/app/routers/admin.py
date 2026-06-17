@@ -106,28 +106,24 @@ async def stations_nearby(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Public endpoint. Geocodes the address via Google, finds nearby police
-    stations from Places API, upserts them into the local DB, and returns
-    them with real DB IDs so the FIR form can use station_id directly.
+    Public endpoint. Uses Google Places Text Search to find police stations
+    near the given address — single API call, only Places API required.
+    Upserts results into the local DB and returns them with real DB IDs.
     """
-    from app.services.places import geocode_address, nearby_police_stations
+    from app.services.places import search_police_stations_by_text
 
     if not settings.GOOGLE_API_KEY:
         raise HTTPException(503, detail="Location service not configured.")
 
-    location = await geocode_address(address, settings.GOOGLE_API_KEY)
-    if not location:
-        raise HTTPException(
-            422,
-            detail="Could not resolve location. Try including city or landmark name.",
-        )
+    try:
+        places = await search_police_stations_by_text(address, settings.GOOGLE_API_KEY)
+    except ValueError as e:
+        raise HTTPException(503, detail=str(e))
 
-    places = await nearby_police_stations(
-        location["lat"], location["lng"], settings.GOOGLE_API_KEY
-    )
     if not places:
-        places = await nearby_police_stations(
-            location["lat"], location["lng"], settings.GOOGLE_API_KEY, radius=15000
+        raise HTTPException(
+            404,
+            detail="No police stations found near this location. Try adding the district or city name.",
         )
 
     results: list[StationResponse] = []
@@ -141,11 +137,16 @@ async def stations_nearby(
         if existing:
             results.append(StationResponse.model_validate(existing))
         else:
+            # Extract state/district from formatted_address (best-effort)
+            addr_parts = p["address"].split(",")
+            state = addr_parts[-2].strip() if len(addr_parts) >= 2 else "India"
+            district = addr_parts[-3].strip() if len(addr_parts) >= 3 else state
+
             station = PoliceStation(
                 id=str(uuid.uuid4()),
                 name=p["name"],
-                district=location["district"] or "Unknown",
-                state=location["state"],
+                district=district,
+                state=state,
                 address=p["address"],
                 phone=None,
             )
