@@ -1,4 +1,5 @@
 import uuid
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -7,6 +8,8 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 from app.core.database import get_session
 from app.core.security import require_roles
 from app.models.user import User
@@ -110,48 +113,70 @@ async def stations_nearby(
     stations near the given address. Completely free — no API key required.
     Upserts results into the local DB and returns them with real DB IDs.
     """
-    from app.services.places import geocode_nominatim, overpass_police_stations
+    try:
+        from app.services.places import geocode_nominatim, overpass_police_stations
 
-    location = await geocode_nominatim(address)
-    if not location:
-        raise HTTPException(
-            422,
-            detail="Could not find that location. Try adding the city or district name.",
-        )
-
-    places = await overpass_police_stations(location["lat"], location["lng"])
-
-    if not places:
-        raise HTTPException(
-            404,
-            detail="No police stations found near this location. Try a nearby landmark or area name.",
-        )
-
-    results: list[StationResponse] = []
-    for p in places:
-        existing = (
-            await session.exec(
-                select(PoliceStation).where(PoliceStation.name == p["name"])
+        location = await geocode_nominatim(address)
+        if not location:
+            raise HTTPException(
+                422,
+                detail="Could not find that location. Try adding the city or district name.",
             )
-        ).first()
 
-        if existing:
-            results.append(StationResponse.model_validate(existing))
-        else:
-            station = PoliceStation(
-                id=str(uuid.uuid4()),
-                name=p["name"],
-                district=location["district"] or "Unknown",
-                state=location["state"],
-                address=p["address"] or address,
-                phone=None,
+        places = await overpass_police_stations(location["lat"], location["lng"])
+
+        if not places:
+            raise HTTPException(
+                404,
+                detail="No police stations found near this location. Try a nearby landmark or area name.",
             )
-            session.add(station)
-            await session.flush()
-            results.append(StationResponse.model_validate(station))
 
-    await session.commit()
-    return results
+        results: list[StationResponse] = []
+        for p in places:
+            existing = (
+                await session.exec(
+                    select(PoliceStation).where(PoliceStation.name == p["name"])
+                )
+            ).first()
+
+            if existing:
+                results.append(StationResponse(
+                    id=str(existing.id),
+                    name=existing.name,
+                    district=existing.district,
+                    state=existing.state,
+                    address=existing.address,
+                    phone=existing.phone,
+                ))
+            else:
+                new_id = str(uuid.uuid4())
+                station = PoliceStation(
+                    id=new_id,
+                    name=p["name"],
+                    district=location["district"] or "Unknown",
+                    state=location["state"],
+                    address=p["address"] or address,
+                    phone=None,
+                )
+                session.add(station)
+                await session.flush()
+                results.append(StationResponse(
+                    id=new_id,
+                    name=p["name"],
+                    district=location["district"] or "Unknown",
+                    state=location["state"],
+                    address=p["address"] or address,
+                    phone=None,
+                ))
+
+        await session.commit()
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("stations_nearby failed for address=%r: %s", address, exc)
+        raise HTTPException(status_code=500, detail=f"{type(exc).__name__}: {exc}")
 
 
 # ── User Management ───────────────────────────────────────────────────────────

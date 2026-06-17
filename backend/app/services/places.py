@@ -74,7 +74,7 @@ async def geocode_nominatim(address: str) -> Optional[dict]:
                     "addressdetails": "1",
                 })
                 results = r.json()
-            except (httpx.TimeoutException, httpx.HTTPError):
+            except (httpx.TimeoutException, httpx.HTTPError, ValueError):
                 continue
             if results:
                 hit  = results[0]
@@ -116,7 +116,7 @@ async def overpass_police_stations(lat: float, lng: float, radius: int = 10000) 
         async with httpx.AsyncClient(timeout=12) as client:
             r = await client.post(OVERPASS_URL, data={"data": query})
             data = r.json()
-    except (httpx.TimeoutException, httpx.HTTPError):
+    except (httpx.TimeoutException, httpx.HTTPError, ValueError):
         return []
 
     stations = []
