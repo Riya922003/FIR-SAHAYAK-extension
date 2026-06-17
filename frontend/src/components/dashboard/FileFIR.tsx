@@ -30,6 +30,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
   // Station search
   const [nearbyStations, setNearbyStations] = useState<PoliceStation[]>([]);
   const [selectedStation, setSelectedStation] = useState<PoliceStation | null>(null);
+  const [showStationList, setShowStationList] = useState(false);
   const [stationSearching, setStationSearching] = useState(false);
   const [stationError, setStationError] = useState('');
   const [searchedAddress, setSearchedAddress] = useState('');
@@ -44,6 +45,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
     if (name === 'incident_location' && searchedAddress && value !== searchedAddress) {
       setNearbyStations([]);
       setSelectedStation(null);
+      setShowStationList(false);
       setSearchedAddress('');
       setForm(prev => ({ ...prev, station_id: '', incident_location: value }));
     }
@@ -64,6 +66,8 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
       setSearchedAddress(addr);
       if (stations.length === 0) {
         setStationError('No police stations found near this location. Try adding the city or district name.');
+      } else {
+        setShowStationList(true);
       }
     } catch (e: unknown) {
       setStationError(e instanceof Error ? e.message : 'Could not find nearby stations.');
@@ -75,6 +79,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
   const selectStation = (station: PoliceStation) => {
     setSelectedStation(station);
     setForm(prev => ({ ...prev, station_id: station.id }));
+    setShowStationList(false);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -213,16 +218,39 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
               </div>
             )}
 
-            {!stationSearching && nearbyStations.length > 0 && (
+            {/* Selected station summary (collapsed state) */}
+            {selectedStation && !showStationList && (
               <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
-                <label>
-                  Select Police Station *
-                  {selectedStation && (
-                    <span style={{ fontWeight: 400, color: '#22c55e', marginLeft: '0.5rem', fontSize: '0.8rem' }}>
-                      Station selected
-                    </span>
-                  )}
-                </label>
+                <label>Selected Police Station *</label>
+                <div className="station-card selected" style={{ cursor: 'default' }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="station-card-name">{selectedStation.name}</div>
+                    <div className="station-card-address">{selectedStation.address}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                    <span style={{
+                      width: 22, height: 22, borderRadius: '50%',
+                      background: '#22c55e', color: '#fff',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.75rem',
+                    }}>✓</span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                      onClick={() => setShowStationList(true)}
+                    >
+                      Change
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Station list (open while browsing) */}
+            {!stationSearching && nearbyStations.length > 0 && showStationList && (
+              <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
+                <label>Select Police Station *</label>
                 <div className="station-picker">
                   {nearbyStations.map(s => {
                     const isSelected = selectedStation?.id === s.id;
