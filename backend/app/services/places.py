@@ -137,7 +137,7 @@ def _deduplicate(stations: list[dict], origin_lat: float, origin_lng: float) -> 
 def _parse_overpass_elements(elements: list, fallback_lat: float, fallback_lng: float) -> list[dict]:
     stations = []
     seen_ids: set = set()
-    for el in elements[:15]:
+    for el in elements[:20]:
         el_id = (el["type"], el["id"])
         if el_id in seen_ids:
             continue
@@ -161,7 +161,15 @@ def _parse_overpass_elements(elements: list, fallback_lat: float, fallback_lng: 
             elat = center.get("lat", fallback_lat)
             elng = center.get("lon", fallback_lng)
 
-        stations.append({"name": name, "address": address, "lat": elat, "lng": elng})
+        # Preserve per-station state/district from OSM tags (may be empty)
+        stations.append({
+            "name":     name,
+            "address":  address,
+            "lat":      elat,
+            "lng":      elng,
+            "state":    tags.get("addr:state", ""),
+            "district": tags.get("addr:city", "") or tags.get("addr:town", ""),
+        })
     return stations
 
 
@@ -236,9 +244,12 @@ async def nominatim_police_stations(lat: float, lng: float) -> list[dict]:
         ]
         address = ", ".join(p for p in addr_parts if p)
         stations.append({
-            "name": name,
-            "address": address,
-            "lat": float(hit["lat"]),
-            "lng": float(hit["lon"]),
+            "name":     name,
+            "address":  address,
+            "lat":      float(hit["lat"]),
+            "lng":      float(hit["lon"]),
+            # Nominatim gives us accurate per-station state/district
+            "state":    addr.get("state", ""),
+            "district": addr.get("city", "") or addr.get("town", "") or addr.get("county", ""),
         })
     return _deduplicate(stations, lat, lng)

@@ -135,8 +135,22 @@ async def stations_nearby(
                 detail="No police stations found near this location. Try a nearby landmark or area name.",
             )
 
+        # Prioritise stations in the same state as the searched address, then by distance
+        from app.services.places import _distance_km
+        search_state = location["state"].lower()
+        places.sort(key=lambda p: (
+            0 if p.get("state", "").lower() == search_state else 1,
+            _distance_km(location["lat"], location["lng"], p["lat"], p["lng"]),
+        ))
+        places = places[:8]  # return at most 8 options
+
         results: list[StationResponse] = []
         for p in places:
+            # Use the station's own state/district from OSM/Nominatim; fall back to
+            # the geocoded location only when the station has no address tags.
+            station_state    = p.get("state")    or location["state"]
+            station_district = p.get("district") or location["district"] or "Unknown"
+
             existing = (
                 await session.exec(
                     select(PoliceStation).where(PoliceStation.name == p["name"])
@@ -157,8 +171,8 @@ async def stations_nearby(
                 station = PoliceStation(
                     id=new_id,
                     name=p["name"],
-                    district=location["district"] or "Unknown",
-                    state=location["state"],
+                    district=station_district,
+                    state=station_state,
                     address=p["address"] or address,
                     phone=None,
                 )
@@ -167,8 +181,8 @@ async def stations_nearby(
                 results.append(StationResponse(
                     id=new_id,
                     name=p["name"],
-                    district=location["district"] or "Unknown",
-                    state=location["state"],
+                    district=station_district,
+                    state=station_state,
                     address=p["address"] or address,
                     phone=None,
                 ))
