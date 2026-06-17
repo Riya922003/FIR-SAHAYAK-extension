@@ -14,7 +14,11 @@ const STATUS_FILTERS: { label: string; value: FIRStatus | 'all' }[] = [
   { label: 'Closed',        value: 'closed' },
 ];
 
-export default function ActiveCases() {
+interface Props {
+  onSelect?: (firId: string) => void;
+}
+
+export default function ActiveCases({ onSelect }: Props) {
   const { token } = useAuth();
   const [cases, setCases] = useState<FIRWithStation[]>([]);
   const [stations, setStations] = useState<StationHealth[]>([]);
@@ -143,7 +147,11 @@ export default function ActiveCases() {
             </thead>
             <tbody>
               {filtered.map(c => (
-                <tr key={c.id}>
+                <tr
+                  key={c.id}
+                  onClick={() => onSelect?.(c.id)}
+                  style={{ cursor: onSelect ? 'pointer' : 'default' }}
+                >
                   <td><strong>{c.fir_number}</strong></td>
                   <td>
                     <span

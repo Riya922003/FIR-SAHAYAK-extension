@@ -189,6 +189,25 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
+      {/* Escalated info box (citizen visibility — Phase 9) */}
+      {fir.status === 'escalated' && (
+        <div style={{
+          background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12,
+          padding: '1rem 1.25rem', marginBottom: '1rem',
+          display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
+        }}>
+          <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>⚠</span>
+          <div>
+            <div style={{ fontWeight: 700, color: '#9a3412', fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+              Escalated to District Higher Authority
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6 }}>
+              Your FIR has been escalated and is now under review by the district authority. You will be notified if any action is taken. You can no longer close or withdraw this FIR.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       {(canCancel || canEscalate) && (
         <div className="dash-card">

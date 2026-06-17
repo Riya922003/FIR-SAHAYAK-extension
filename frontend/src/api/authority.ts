@@ -115,6 +115,48 @@ export async function postEscalationAction(
   return res.json();
 }
 
+export interface DirectiveItem {
+  fir_id: string;
+  fir_number: string;
+  station_name: string;
+  directive: string;
+  hand_back: boolean;
+  issued_at: string;
+  issued_by_id: string;
+}
+
+export interface OfficerInfo {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  role: string;
+  station_id: string | null;
+  station_name: string;
+}
+
+export async function postFIRNote(token: string, firId: string, note: string): Promise<FIR> {
+  const res = await fetch(`${API}/api/v1/authority/district/cases/${firId}/note`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
+export async function getDistrictDirectives(token: string): Promise<DirectiveItem[]> {
+  const res = await fetch(`${API}/api/v1/authority/district/directives`, { headers: authH(token) });
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
+export async function getDistrictOfficers(token: string): Promise<OfficerInfo[]> {
+  const res = await fetch(`${API}/api/v1/authority/district/officers`, { headers: authH(token) });
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
 export async function getStationFIRs(token: string, stationId: string): Promise<FIR[]> {
   const res = await fetch(`${API}/api/v1/authority/district/stations/${stationId}/firs`, { headers: authH(token) });
   if (!res.ok) await handleError(res);

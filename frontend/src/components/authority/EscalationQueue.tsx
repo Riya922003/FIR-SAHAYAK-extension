@@ -3,7 +3,11 @@ import { useAuth } from '../../context/AuthContext';
 import { getDistrictEscalations, postEscalationAction, type EscalationItem } from '../../api/authority';
 import { INCIDENT_LABELS } from '../../api/fir';
 
-export default function EscalationQueue() {
+interface Props {
+  onSelectFIR?: (firId: string) => void;
+}
+
+export default function EscalationQueue({ onSelectFIR }: Props) {
   const { token } = useAuth();
   const [items, setItems] = useState<EscalationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,13 +119,24 @@ export default function EscalationQueue() {
                     </span>
                   </td>
                   <td style={{ textAlign: 'right', paddingRight: '1rem' }}>
-                    <button
-                      className="btn-secondary"
-                      style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', color: '#8b5cf6', borderColor: '#8b5cf6' }}
-                      onClick={() => openModal(item)}
-                    >
-                      Act
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                      {onSelectFIR && (
+                        <button
+                          className="btn-secondary"
+                          style={{ fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+                          onClick={() => onSelectFIR(item.fir_id)}
+                        >
+                          View
+                        </button>
+                      )}
+                      <button
+                        className="btn-secondary"
+                        style={{ fontSize: '0.78rem', padding: '0.3rem 0.75rem', color: '#8b5cf6', borderColor: '#8b5cf6' }}
+                        onClick={() => openModal(item)}
+                      >
+                        Act
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

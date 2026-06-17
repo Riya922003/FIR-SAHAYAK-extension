@@ -6,11 +6,17 @@ import StationHealthList from '../components/authority/StationHealthList';
 import StationFIRList from '../components/authority/StationFIRList';
 import EscalationQueue from '../components/authority/EscalationQueue';
 import ActiveCases from '../components/authority/ActiveCases';
+import FIRDetailAuthority from '../components/authority/FIRDetailAuthority';
+import DirectivesLog from '../components/authority/DirectivesLog';
+import OfficerManagement from '../components/authority/OfficerManagement';
 import { getDistrictStats, getDistrictStations, type DistrictStats, type StationHealth } from '../api/authority';
 import '../styles/dashboard.css';
 import '../styles/authority.css';
 
-type View = 'dashboard' | 'station-detail' | 'escalations' | 'active-cases' | 'profile';
+type View =
+  | 'dashboard' | 'station-detail'
+  | 'escalations' | 'active-cases' | 'fir-detail'
+  | 'stations' | 'directives' | 'officers' | 'profile';
 
 export default function AuthorityDashboard() {
   const { user, token, logout } = useAuth();
@@ -23,8 +29,11 @@ export default function AuthorityDashboard() {
   const [loadingDash, setLoadingDash] = useState(false);
   const [dashError, setDashError] = useState('');
 
-  // Station drill-in
+  // Drill-in targets
   const [selectedStation, setSelectedStation] = useState<StationHealth | null>(null);
+  const [selectedFirId, setSelectedFirId] = useState<string | null>(null);
+  // Track where FIR detail was opened from so back navigates correctly
+  const [firDetailOrigin, setFirDetailOrigin] = useState<View>('active-cases');
 
   const loadDashboard = useCallback(async () => {
     if (!token) return;
@@ -41,31 +50,49 @@ export default function AuthorityDashboard() {
     }
   }, [token]);
 
-  useEffect(() => {
-    if (user?.district && view === 'dashboard') {
-      loadDashboard();
-    }
-  }, [user?.district, view, loadDashboard]);
+  // Load stations for 'stations' view (reuse if already loaded from dashboard)
+  const loadStationsOnly = useCallback(async () => {
+    if (!token || stations.length > 0) return;
+    getDistrictStations(token).then(setStations).catch(() => {});
+  }, [token, stations.length]);
 
-  // First login — no district set yet
+  useEffect(() => {
+    if (!user?.district) return;
+    if (view === 'dashboard') loadDashboard();
+    if (view === 'stations') loadStationsOnly();
+  }, [view, user?.district]);
+
   if (!user?.district) return <DistrictPicker />;
 
-  const initials = user.full_name
-    .split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
-  const handleDrillIn = (station: StationHealth) => {
+  const handleStationDrillIn = (station: StationHealth) => {
     setSelectedStation(station);
     setView('station-detail');
   };
 
+  const handleFIRSelect = (firId: string, origin: View) => {
+    setSelectedFirId(firId);
+    setFirDetailOrigin(origin);
+    setView('fir-detail');
+  };
+
   const handleBack = () => {
     setSelectedStation(null);
-    setView('dashboard');
+    setSelectedFirId(null);
+    setView(view === 'station-detail'
+      ? (selectedStation ? (firDetailOrigin === 'stations' ? 'stations' : 'dashboard') : 'dashboard')
+      : firDetailOrigin,
+    );
   };
+
+  const navTo = (v: View) => {
+    setSelectedStation(null);
+    setSelectedFirId(null);
+    setView(v);
+  };
+
+  const isActive = (...views: View[]) => views.includes(view);
 
   return (
     <div className="dashboard-layout">
@@ -91,8 +118,8 @@ export default function AuthorityDashboard() {
 
         <nav className="sidebar-nav">
           <button
-            className={`sidebar-item${view === 'dashboard' || view === 'station-detail' ? ' active authority-active' : ''}`}
-            onClick={() => { setView('dashboard'); setSelectedStation(null); }}
+            className={`sidebar-item${isActive('dashboard', 'station-detail') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('dashboard')}
             title={collapsed ? 'Dashboard' : undefined}
           >
             <span className="item-icon">📊</span>
@@ -100,8 +127,8 @@ export default function AuthorityDashboard() {
           </button>
 
           <button
-            className={`sidebar-item${view === 'escalations' ? ' active authority-active' : ''}`}
-            onClick={() => setView('escalations')}
+            className={`sidebar-item${isActive('escalations') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('escalations')}
             title={collapsed ? 'Escalations' : undefined}
           >
             <span className="item-icon">🚨</span>
@@ -109,8 +136,8 @@ export default function AuthorityDashboard() {
           </button>
 
           <button
-            className={`sidebar-item${view === 'active-cases' ? ' active authority-active' : ''}`}
-            onClick={() => setView('active-cases')}
+            className={`sidebar-item${isActive('active-cases', 'fir-detail') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('active-cases')}
             title={collapsed ? 'Active Cases' : undefined}
           >
             <span className="item-icon">📁</span>
@@ -118,21 +145,37 @@ export default function AuthorityDashboard() {
           </button>
 
           <button
-            className="sidebar-item disabled"
-            title={collapsed ? 'Stations (coming soon)' : undefined}
+            className={`sidebar-item${isActive('stations') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('stations')}
+            title={collapsed ? 'Stations' : undefined}
           >
             <span className="item-icon">🏛️</span>
-            <span className="item-label">
-              Stations
-              <span className="soon-badge">Soon</span>
-            </span>
+            <span className="item-label">Stations</span>
+          </button>
+
+          <button
+            className={`sidebar-item${isActive('officers') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('officers')}
+            title={collapsed ? 'Officers' : undefined}
+          >
+            <span className="item-icon">👮</span>
+            <span className="item-label">Officers</span>
+          </button>
+
+          <button
+            className={`sidebar-item${isActive('directives') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('directives')}
+            title={collapsed ? 'Directives' : undefined}
+          >
+            <span className="item-icon">📋</span>
+            <span className="item-label">Directives</span>
           </button>
 
           <div className="sidebar-divider" style={{ marginTop: 'auto' }} />
 
           <button
-            className={`sidebar-item${view === 'profile' ? ' active authority-active' : ''}`}
-            onClick={() => setView('profile')}
+            className={`sidebar-item${isActive('profile') ? ' active authority-active' : ''}`}
+            onClick={() => navTo('profile')}
             title={collapsed ? 'My Profile' : undefined}
           >
             <span className="item-icon">👤</span>
@@ -153,76 +196,98 @@ export default function AuthorityDashboard() {
       {/* ── Main content ── */}
       <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
 
-        {/* ── District Dashboard ── */}
-        {(view === 'dashboard') && (
+        {/* Dashboard */}
+        {view === 'dashboard' && (
           <div>
             <div className="dash-header">
               <div>
                 <h1>District Overview</h1>
                 <p>Oversight portal for <strong>{user.district}</strong> district</p>
               </div>
-              <button
-                className="btn-refresh"
-                onClick={loadDashboard}
-                disabled={loadingDash}
-                title="Refresh"
-              >
+              <button className="btn-refresh" onClick={loadDashboard} disabled={loadingDash}>
                 {loadingDash ? '…' : '↻'} Refresh
               </button>
             </div>
-
             {dashError && <div className="dash-error">⚠ {dashError}</div>}
-
             {loadingDash && !stats ? (
               <div className="dash-loading">Loading district data…</div>
             ) : stats ? (
               <>
                 <DistrictStatsRow stats={stats} district={user.district} />
                 <div style={{ marginTop: '1.5rem' }}>
-                  <StationHealthList stations={stations} onDrillIn={handleDrillIn} />
+                  <StationHealthList stations={stations} onDrillIn={handleStationDrillIn} />
                 </div>
               </>
             ) : null}
           </div>
         )}
 
-        {/* ── Escalation Queue ── */}
-        {view === 'escalations' && <EscalationQueue />}
-
-        {/* ── Active Cases ── */}
-        {view === 'active-cases' && <ActiveCases />}
-
-        {/* ── Station FIR drill-in ── */}
+        {/* Station FIR drill-in (from dashboard or stations view) */}
         {view === 'station-detail' && selectedStation && (
-          <StationFIRList station={selectedStation} onBack={handleBack} />
+          <StationFIRList station={selectedStation} onBack={() => navTo(firDetailOrigin === 'stations' ? 'stations' : 'dashboard')} />
         )}
 
-        {/* ── Profile ── */}
+        {/* Escalations */}
+        {view === 'escalations' && (
+          <EscalationQueue onSelectFIR={id => handleFIRSelect(id, 'escalations')} />
+        )}
+
+        {/* Active Cases */}
+        {view === 'active-cases' && (
+          <ActiveCases onSelect={id => handleFIRSelect(id, 'active-cases')} />
+        )}
+
+        {/* FIR Detail (authority perspective) */}
+        {view === 'fir-detail' && selectedFirId && (
+          <FIRDetailAuthority
+            firId={selectedFirId}
+            onBack={() => navTo(firDetailOrigin)}
+          />
+        )}
+
+        {/* Stations */}
+        {view === 'stations' && (
+          <div>
+            <div className="dash-header">
+              <div>
+                <h1>Stations</h1>
+                <p>All police stations in <strong>{user.district}</strong> district</p>
+              </div>
+              <button className="btn-refresh" onClick={loadStationsOnly} disabled={loadingDash}>
+                ↻ Refresh
+              </button>
+            </div>
+            <StationHealthList
+              stations={stations}
+              onDrillIn={st => {
+                setFirDetailOrigin('stations');
+                handleStationDrillIn(st);
+              }}
+            />
+          </div>
+        )}
+
+        {/* Officers */}
+        {view === 'officers' && <OfficerManagement />}
+
+        {/* Directives */}
+        {view === 'directives' && <DirectivesLog />}
+
+        {/* Profile */}
         {view === 'profile' && (
           <div>
             <div className="dash-header">
               <h1>My Profile</h1>
               <p>Your account and jurisdiction information</p>
             </div>
-
             <div className="dash-card profile-card">
               <div className="profile-avatar authority-avatar">{initials}</div>
               <div className="profile-name">{user.full_name}</div>
               <div className="profile-role-badge authority-role-badge">Higher Authority</div>
-
               <div className="profile-fields">
-                <div className="profile-field">
-                  <label>Email Address</label>
-                  <span>{user.email}</span>
-                </div>
-                <div className="profile-field">
-                  <label>Username</label>
-                  <span>@{user.username}</span>
-                </div>
-                <div className="profile-field">
-                  <label>Phone</label>
-                  <span>{user.phone}</span>
-                </div>
+                <div className="profile-field"><label>Email Address</label><span>{user.email}</span></div>
+                <div className="profile-field"><label>Username</label><span>@{user.username}</span></div>
+                <div className="profile-field"><label>Phone</label><span>{user.phone}</span></div>
                 <div className="profile-field">
                   <label>Assigned District</label>
                   <span style={{ fontWeight: 600 }}>{user.district}</span>

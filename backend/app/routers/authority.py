@@ -77,6 +77,30 @@ class FIRWithStation(BaseModel):
     updated_at: datetime
 
 
+class NoteRequest(BaseModel):
+    note: str = Field(min_length=5)
+
+
+class DirectiveItem(BaseModel):
+    fir_id: str
+    fir_number: str
+    station_name: str
+    directive: str
+    hand_back: bool
+    issued_at: datetime
+    issued_by_id: str
+
+
+class OfficerInfo(BaseModel):
+    id: str
+    full_name: str
+    email: str
+    phone: str
+    role: str
+    station_id: Optional[str]
+    station_name: str
+
+
 class StationHealth(BaseModel):
     id: str
     name: str
@@ -347,4 +371,115 @@ async def get_district_cases(
             updated_at=f.updated_at,
         )
         for f in firs
+    ]
+
+
+@router.post("/district/cases/{fir_id}/note", response_model=FIRResponse)
+async def add_fir_note(
+    fir_id: str,
+    payload: NoteRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+):
+    district = _district(current_user)
+    fir = await session.get(FIR, fir_id)
+    if not fir:
+        raise HTTPException(404, "FIR not found")
+    station = await session.get(PoliceStation, fir.station_id)
+    if not station or station.district.lower() != district.lower():
+        raise HTTPException(404, "FIR not in your district")
+
+    history = FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=fir.status,
+        new_status=fir.status,
+        changed_by=current_user.id,
+        notes=f"[Authority Note] {payload.note}",
+    )
+    session.add(history)
+    await session.commit()
+    await session.refresh(fir)
+    return fir
+
+
+@router.get("/district/directives", response_model=List[DirectiveItem])
+async def get_district_directives(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+):
+    district = _district(current_user)
+
+    station_rows = (await session.exec(
+        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+    )).all()
+    station_map = {row[0]: row[1] for row in station_rows}
+    if not station_map:
+        return []
+
+    fir_rows = (await session.exec(
+        select(FIR.id, FIR.fir_number, FIR.station_id)
+        .where(FIR.station_id.in_(list(station_map.keys())))
+    )).all()
+    fir_map = {row[0]: (row[1], row[2]) for row in fir_rows}  # fir_id → (fir_number, station_id)
+    if not fir_map:
+        return []
+
+    history_rows = (await session.exec(
+        select(FIRStatusHistory)
+        .where(FIRStatusHistory.fir_id.in_(list(fir_map.keys())))
+        .where(FIRStatusHistory.notes.contains("[Authority Directive]"))
+        .order_by(FIRStatusHistory.changed_at.desc())
+    )).all()
+
+    result = []
+    for h in history_rows:
+        fir_number, station_id = fir_map.get(h.fir_id, ("Unknown", ""))
+        raw = h.notes or ""
+        directive = raw[len("[Authority Directive] "):] if raw.startswith("[Authority Directive] ") else raw
+        if " — Handed back" in directive:
+            directive = directive[:directive.index(" — Handed back")]
+        result.append(DirectiveItem(
+            fir_id=h.fir_id,
+            fir_number=fir_number,
+            station_name=station_map.get(station_id, "Unknown"),
+            directive=directive,
+            hand_back=" — Handed back" in (h.notes or ""),
+            issued_at=h.changed_at,
+            issued_by_id=h.changed_by,
+        ))
+    return result
+
+
+@router.get("/district/officers", response_model=List[OfficerInfo])
+async def get_district_officers(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+):
+    district = _district(current_user)
+
+    station_rows = (await session.exec(
+        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+    )).all()
+    station_map = {row[0]: row[1] for row in station_rows}
+    if not station_map:
+        return []
+
+    officers = (await session.exec(
+        select(User)
+        .where(User.station_id.in_(list(station_map.keys())))
+        .where(User.role.in_([UserRole.OFFICER, UserRole.STATION_ADMIN]))
+        .order_by(User.full_name)
+    )).all()
+
+    return [
+        OfficerInfo(
+            id=o.id,
+            full_name=o.full_name,
+            email=o.email,
+            phone=o.phone,
+            role=o.role,
+            station_id=o.station_id,
+            station_name=station_map.get(o.station_id or "", "Unknown"),
+        )
+        for o in officers
     ]
