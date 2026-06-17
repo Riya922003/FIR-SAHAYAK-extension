@@ -55,7 +55,7 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
         <div className="dash-loading">Loading FIRs…</div>
       ) : filtered.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🔍</div>
+          <div className="empty-icon" />
           <h3>No FIRs found</h3>
           <p>{activeFilter === 'ALL' ? "You haven't filed any FIRs yet." : `No FIRs with status "${STATUS_LABELS[activeFilter as FIRStatus]}".`}</p>
           {activeFilter === 'ALL' && (

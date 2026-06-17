@@ -641,8 +641,7 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
 
-.ov-empty-graphic { margin-bottom: 1rem; }
-.ov-empty-shield  { font-size: 3.5rem; }
+.ov-empty-graphic { margin-bottom: 0.5rem; }
 
 .ov-empty h2 {
   font-size: 1.2rem;

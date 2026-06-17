@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+﻿import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
@@ -43,7 +43,7 @@ export default function LoginPage() {
         <div className="auth-brand-bar" />
         <div className="auth-brand-text">
           <h1>FIR Sahayak</h1>
-          <span>Online FIR Filing Portal — Government of India</span>
+          <span>Online FIR Filing Portal â€” Government of India</span>
         </div>
       </Link>
 
@@ -53,13 +53,13 @@ export default function LoginPage() {
 
         {/* Test credentials banner */}
         <div className="test-creds-banner">
-          <span>🧪 Testing?</span>
+          <span>ðŸ§ª Testing?</span>
           <button type="button" className="test-creds-btn" onClick={fillTestCreds}>
             Fill test credentials
           </button>
         </div>
 
-        {error && <div className="auth-error">⚠ {error}</div>}
+        {error && <div className="auth-error">âš  {error}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
@@ -89,7 +89,7 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="auth-submit-btn" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In →'}
+            {loading ? 'Signing inâ€¦' : 'Sign In â†’'}
           </button>
         </form>
 
@@ -98,7 +98,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <Link to="/" className="auth-back">← Back to home</Link>
+      <Link to="/" className="auth-back">â† Back to home</Link>
     </div>
   );
 }

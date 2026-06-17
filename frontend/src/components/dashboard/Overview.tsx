@@ -46,9 +46,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
   if (firs.length === 0) {
     return (
       <div className="ov-empty">
-        <div className="ov-empty-graphic">
-          <div className="ov-empty-shield">🛡️</div>
-        </div>
+        <div className="ov-empty-graphic" />
         <h2>No complaints on record</h2>
         <p>
           Experienced an incident? File an FIR online — it reaches the station instantly
@@ -96,7 +94,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
         <div className="ov-eyebrow">
           {isActive
             ? <><span className="ov-live-dot" />Active Case</>
-            : <span>📁 Most Recent Case</span>}
+            : <span>Most Recent Case</span>}
         </div>
 
         {/* Top row: FIR number + status */}
@@ -155,7 +153,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
 
         {/* Footer */}
         <div className="ov-hero-footer">
-          <span>📅 Filed {fmt(hero.created_at)}</span>
+          <span>Filed {fmt(hero.created_at)}</span>
           <span className="ov-cta-link">View full details →</span>
         </div>
       </div>

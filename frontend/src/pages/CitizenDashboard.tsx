@@ -10,14 +10,14 @@ import '../styles/dashboard.css';
 
 type View = 'overview' | 'my-firs' | 'detail' | 'file-fir' | 'profile';
 
-const NAV_ITEMS: { view: View; icon: string; label: string; disabled?: boolean }[] = [
-  { view: 'overview',  icon: '📊', label: 'Overview' },
-  { view: 'my-firs',   icon: '📋', label: 'My FIRs' },
-  { view: 'file-fir',  icon: '➕', label: 'File New FIR' },
+const NAV_ITEMS: { view: View; label: string; disabled?: boolean }[] = [
+  { view: 'overview',  label: 'Overview' },
+  { view: 'my-firs',   label: 'My FIRs' },
+  { view: 'file-fir',  label: 'File Complaint' },
 ];
 
 const NAV_BOTTOM = [
-  { view: 'profile' as View, icon: '👤', label: 'My Profile' },
+  { view: 'profile' as View, label: 'My Profile' },
 ];
 
 export default function CitizenDashboard() {
@@ -49,7 +49,7 @@ export default function CitizenDashboard() {
   };
 
   const handleFileFIRSuccess = (firNumber: string) => {
-    setSuccessMsg(`✅ FIR ${firNumber} filed successfully! Track it in My FIRs.`);
+    setSuccessMsg(`FIR ${firNumber} filed successfully. Track it under My FIRs.`);
     fetchFIRs();
     setView('my-firs');
     setTimeout(() => setSuccessMsg(''), 6000);
@@ -76,7 +76,6 @@ export default function CitizenDashboard() {
               className={`sidebar-item${view === item.view || (item.view === 'my-firs' && view === 'detail') ? ' active' : ''}${item.disabled ? ' disabled' : ''}`}
               onClick={() => !item.disabled && navigate(item.view)}
             >
-              <span className="item-icon">{item.icon}</span>
               {item.label}
             </button>
           ))}
@@ -84,7 +83,6 @@ export default function CitizenDashboard() {
           <div className="sidebar-divider" />
 
           <button className="sidebar-item disabled" title="Coming soon">
-            <span className="item-icon">🤖</span>
             AI Help
             <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: 'rgba(255,255,255,0.1)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>Soon</span>
           </button>
@@ -97,7 +95,6 @@ export default function CitizenDashboard() {
               className={`sidebar-item${view === item.view ? ' active' : ''}`}
               onClick={() => navigate(item.view)}
             >
-              <span className="item-icon">{item.icon}</span>
               {item.label}
             </button>
           ))}
@@ -120,8 +117,8 @@ export default function CitizenDashboard() {
         {view === 'overview' && (
           <>
             <div className="dash-header">
-              <h1>Welcome back, {user?.full_name.split(' ')[0]} 👋</h1>
-              <p>Here's a summary of your FIR activity</p>
+              <h1>Welcome back, {user?.full_name.split(' ')[0]}</h1>
+              <p>Here is a summary of your complaint activity</p>
             </div>
             <Overview
               firs={firs}

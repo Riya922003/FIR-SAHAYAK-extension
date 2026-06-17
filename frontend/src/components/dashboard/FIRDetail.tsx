@@ -46,7 +46,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
     }
   };
 
-  if (loading) return <div className="dash-loading">⏳ Loading FIR details…</div>;
+  if (loading) return <div className="dash-loading">Loading FIR details…</div>;
   if (error) return <div className="dash-error">⚠ {error}</div>;
   if (!fir) return null;
 
