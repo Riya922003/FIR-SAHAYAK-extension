@@ -82,13 +82,21 @@ export async function getFIRDetail(token: string, id: string): Promise<FIRDetail
 }
 
 export async function fileFIR(token: string, payload: FileFIRPayload): Promise<FIR> {
-  const res = await fetch(`${API_URL}/api/v1/fir`, {
+  const res = await fetch(`${API_URL}/api/v1/fir/`, {   // trailing slash required
     method: 'POST',
     headers: authH(token),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.detail || 'Failed to file FIR');
+  if (!res.ok) {
+    const detail = data.detail;
+    const msg = typeof detail === 'string'
+      ? detail
+      : Array.isArray(detail)
+        ? detail.map((e: { msg?: string }) => e.msg ?? JSON.stringify(e)).join('; ')
+        : 'Failed to file FIR';
+    throw new Error(msg);
+  }
   return data;
 }
 
