@@ -6,6 +6,7 @@ No API key or billing account required.
 """
 
 import re
+import math
 import httpx
 from typing import Optional
 
@@ -97,6 +98,42 @@ async def geocode_nominatim(address: str) -> Optional[dict]:
     return None
 
 
+def _distance_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Haversine distance in km between two coordinates."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = (math.sin(dlat / 2) ** 2
+         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2)
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def _normalize_name(name: str) -> str:
+    """Lowercase + strip common affixes so near-duplicates collapse."""
+    n = name.lower().strip()
+    for pfx in ("police station ", "police chowki ", "police outpost ", "police post "):
+        if n.startswith(pfx):
+            n = n[len(pfx):]
+    for sfx in (" police station", " police chowki", " police outpost", " police post", " police", " ps"):
+        if n.endswith(sfx):
+            n = n[: -len(sfx)]
+    return n.strip()
+
+
+def _deduplicate(stations: list[dict], origin_lat: float, origin_lng: float) -> list[dict]:
+    """Remove near-duplicates (same normalised name) keeping the closest one."""
+    # Sort nearest-first so we keep the closer copy when deduplicating
+    stations.sort(key=lambda s: _distance_km(origin_lat, origin_lng, s["lat"], s["lng"]))
+    seen: set[str] = set()
+    result = []
+    for s in stations:
+        key = _normalize_name(s["name"])
+        if key not in seen:
+            seen.add(key)
+            result.append(s)
+    return result
+
+
 def _parse_overpass_elements(elements: list, fallback_lat: float, fallback_lng: float) -> list[dict]:
     stations = []
     seen_ids: set = set()
@@ -128,14 +165,15 @@ def _parse_overpass_elements(elements: list, fallback_lat: float, fallback_lng: 
     return stations
 
 
-async def overpass_police_stations(lat: float, lng: float, radius: int = 15000) -> list[dict]:
+async def overpass_police_stations(lat: float, lng: float, radius: int = 8000) -> list[dict]:
     """
     Search OpenStreetMap Overpass for police stations within `radius` metres.
     Uses both amenity=police AND name-based search ("Police Station", "Thana")
     because OSM data in India is often incomplete — many stations have a name
     tag but no amenity tag.
+    Default radius: 8 km (keeps results close to the search point).
     Overpass query timeout: 10s. HTTP client timeout: 13s.
-    Returns up to 15 results, or [] on timeout/error.
+    Returns results sorted nearest-first, deduplicated. [] on error.
     """
     query = (
         f"[out:json][timeout:10];"
@@ -158,20 +196,22 @@ async def overpass_police_stations(lat: float, lng: float, radius: int = 15000) 
     except (httpx.TimeoutException, httpx.HTTPError, ValueError):
         return []
 
-    return _parse_overpass_elements(data.get("elements", []), lat, lng)
+    raw = _parse_overpass_elements(data.get("elements", []), lat, lng)
+    return _deduplicate(raw, lat, lng)
 
 
 async def nominatim_police_stations(lat: float, lng: float) -> list[dict]:
     """
-    Fallback search: ask Nominatim for amenity=police within a ~17 km bounding box.
+    Fallback search: ask Nominatim for amenity=police within a ~9 km bounding box.
     Used when Overpass returns nothing (sparse OSM data in the area).
+    Smaller box avoids pulling in stations from distant cities.
     Timeout: 5s.
     """
-    delta = 0.15  # ~17 km in each direction
+    delta = 0.08  # ~9 km in each direction
     params = {
         "amenity": "police",
         "format": "json",
-        "limit": 10,
+        "limit": 15,
         "countrycodes": "in",
         "viewbox": f"{lng - delta},{lat + delta},{lng + delta},{lat - delta}",
         "bounded": "1",
@@ -201,4 +241,4 @@ async def nominatim_police_stations(lat: float, lng: float) -> list[dict]:
             "lat": float(hit["lat"]),
             "lng": float(hit["lon"]),
         })
-    return stations
+    return _deduplicate(stations, lat, lng)
