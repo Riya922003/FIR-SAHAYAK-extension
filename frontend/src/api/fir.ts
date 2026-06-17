@@ -108,6 +108,14 @@ export async function getStations(token: string): Promise<PoliceStation[]> {
   return res.json();
 }
 
+export async function getNearbyStations(address: string): Promise<PoliceStation[]> {
+  const params = new URLSearchParams({ address });
+  const res = await fetch(`${API_URL}/api/v1/admin/stations/nearby?${params}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Failed to find nearby stations');
+  return data;
+}
+
 // ── Display helpers ───────────────────────────────────────────────────────────
 
 export const STATUS_LABELS: Record<FIRStatus, string> = {

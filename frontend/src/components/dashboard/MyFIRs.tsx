@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FIR, FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import { type FIR, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   firs: FIR[];

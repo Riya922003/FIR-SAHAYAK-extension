@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getFIRDetail, cancelFIR, FIRDetail as FIRDetailType, FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import { getFIRDetail, cancelFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   firId: string;

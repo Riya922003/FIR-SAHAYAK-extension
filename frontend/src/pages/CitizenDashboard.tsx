@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getMyFIRs, FIR } from '../api/fir';
+import { getMyFIRs, type FIR } from '../api/fir';
 import Overview from '../components/dashboard/Overview';
 import MyFIRs from '../components/dashboard/MyFIRs';
 import FIRDetail from '../components/dashboard/FIRDetail';

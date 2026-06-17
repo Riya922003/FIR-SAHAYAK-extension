@@ -1,6 +1,6 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { fileFIR, getStations, PoliceStation, IncidentType, INCIDENT_LABELS } from '../../api/fir';
+import { fileFIR, getNearbyStations, type PoliceStation, type IncidentType, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   onSuccess: (firNumber: string) => void;
@@ -22,23 +22,59 @@ const EMPTY_FORM = {
 
 export default function FileFIR({ onSuccess, onCancel }: Props) {
   const { token, user } = useAuth();
-  const [stations, setStations] = useState<PoliceStation[]>([]);
+
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [stationsLoading, setStationsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!token) return;
-    getStations(token)
-      .then(setStations)
-      .finally(() => setStationsLoading(false));
-  }, [token]);
+  // Station search
+  const [nearbyStations, setNearbyStations] = useState<PoliceStation[]>([]);
+  const [selectedStation, setSelectedStation] = useState<PoliceStation | null>(null);
+  const [stationSearching, setStationSearching] = useState(false);
+  const [stationError, setStationError] = useState('');
+  const [searchedAddress, setSearchedAddress] = useState('');
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+
+    // Clear station selection when location changes after a search
+    if (name === 'incident_location' && searchedAddress && value !== searchedAddress) {
+      setNearbyStations([]);
+      setSelectedStation(null);
+      setSearchedAddress('');
+      setForm(prev => ({ ...prev, station_id: '', incident_location: value }));
+    }
+  };
+
+  const findNearbyStations = async () => {
+    const addr = form.incident_location.trim();
+    if (!addr) return;
+    setStationSearching(true);
+    setStationError('');
+    setNearbyStations([]);
+    setSelectedStation(null);
+    setForm(prev => ({ ...prev, station_id: '' }));
+
+    try {
+      const stations = await getNearbyStations(addr);
+      setNearbyStations(stations);
+      setSearchedAddress(addr);
+      if (stations.length === 0) {
+        setStationError('No police stations found near this location. Try adding the city or district name.');
+      }
+    } catch (e: unknown) {
+      setStationError(e instanceof Error ? e.message : 'Could not find nearby stations.');
+    } finally {
+      setStationSearching(false);
+    }
+  };
+
+  const selectStation = (station: PoliceStation) => {
+    setSelectedStation(station);
+    setForm(prev => ({ ...prev, station_id: station.id }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -47,7 +83,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
 
     if (!form.incident_type) { setError('Please select an incident type'); return; }
     if (form.description.length < 50) { setError('Description must be at least 50 characters'); return; }
-    if (!form.station_id) { setError('Please select a police station'); return; }
+    if (!form.station_id) { setError('Please search for and select a police station'); return; }
 
     setLoading(true);
     try {
@@ -72,14 +108,16 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
   };
 
   const descLen = form.description.length;
+  const canSearch = form.incident_location.trim().length >= 10 && !stationSearching;
+  const locationChanged = searchedAddress && form.incident_location !== searchedAddress;
 
   return (
     <>
       <button className="back-btn" onClick={onCancel}>← Back</button>
 
       <div className="dash-header">
-        <h1>File a New FIR</h1>
-        <p>Submit your complaint — it will be assigned to the selected police station</p>
+        <h1>File a Complaint</h1>
+        <p>Submit your complaint — it will be assigned to the nearest police station</p>
       </div>
 
       {error && <div className="dash-error" style={{ marginBottom: '1rem' }}>⚠ {error}</div>}
@@ -87,9 +125,10 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
       <div className="dash-card">
         <form className="file-fir-form" onSubmit={handleSubmit}>
 
-          {/* Section 1: Incident */}
+          {/* ── Section 1: Incident ── */}
           <div>
             <div className="form-section-title">1. Incident Information</div>
+
             <div className="form-row-2">
               <div className="form-group-dash">
                 <label>Incident Type *</label>
@@ -101,28 +140,6 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
                 </select>
               </div>
               <div className="form-group-dash">
-                <label>Police Station *</label>
-                {stationsLoading ? (
-                  <select disabled><option>Loading stations…</option></select>
-                ) : stations.length === 0 ? (
-                  <div className="no-station-notice">
-                    ⚠ No police stations are registered yet. Please contact the system admin.
-                  </div>
-                ) : (
-                  <select name="station_id" value={form.station_id} onChange={handleChange} required>
-                    <option value="">Select station…</option>
-                    {stations.map(s => (
-                      <option key={s.id} value={s.id}>
-                        {s.name} — {s.district}, {s.state}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              </div>
-            </div>
-
-            <div className="form-row-2" style={{ marginTop: '1rem' }}>
-              <div className="form-group-dash">
                 <label>Incident Date *</label>
                 <input
                   type="date"
@@ -133,6 +150,9 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
                   required
                 />
               </div>
+            </div>
+
+            <div className="form-row-2" style={{ marginTop: '1rem' }}>
               <div className="form-group-dash">
                 <label>Incident Time (optional)</label>
                 <input
@@ -142,20 +162,99 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
                   onChange={handleChange}
                 />
               </div>
+              <div />
             </div>
 
+            {/* Location + Find Stations */}
             <div className="form-group-dash" style={{ marginTop: '1rem' }}>
               <label>Incident Location *</label>
-              <input
-                type="text"
-                name="incident_location"
-                value={form.incident_location}
-                onChange={handleChange}
-                placeholder="e.g. Near SBI ATM, Sector 21, Noida"
-                required
-              />
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                <input
+                  type="text"
+                  name="incident_location"
+                  value={form.incident_location}
+                  onChange={handleChange}
+                  placeholder="e.g. Near SBI ATM, Sector 21, Noida"
+                  style={{ flex: 1 }}
+                  required
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={findNearbyStations}
+                  disabled={!canSearch}
+                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                >
+                  {stationSearching ? 'Searching…' : locationChanged ? 'Search Again' : 'Find Stations'}
+                </button>
+              </div>
+              {!searchedAddress && (
+                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.35rem' }}>
+                  Enter where the incident happened, then click "Find Stations" to select the nearest police station.
+                </div>
+              )}
+              {locationChanged && (
+                <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: '0.35rem' }}>
+                  Location changed — click "Search Again" to update nearby stations.
+                </div>
+              )}
             </div>
 
+            {/* Station search results */}
+            {stationSearching && (
+              <div style={{ padding: '0.75rem 0', color: '#64748b', fontSize: '0.875rem' }}>
+                Locating nearby police stations…
+              </div>
+            )}
+
+            {stationError && !stationSearching && (
+              <div className="dash-error" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                {stationError}
+              </div>
+            )}
+
+            {!stationSearching && nearbyStations.length > 0 && (
+              <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
+                <label>
+                  Select Police Station *
+                  {selectedStation && (
+                    <span style={{ fontWeight: 400, color: '#22c55e', marginLeft: '0.5rem', fontSize: '0.8rem' }}>
+                      Station selected
+                    </span>
+                  )}
+                </label>
+                <div className="station-picker">
+                  {nearbyStations.map(s => {
+                    const isSelected = selectedStation?.id === s.id;
+                    return (
+                      <div
+                        key={s.id}
+                        className={`station-card${isSelected ? ' selected' : ''}`}
+                        onClick={() => selectStation(s)}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={e => e.key === 'Enter' && selectStation(s)}
+                      >
+                        <div>
+                          <div className="station-card-name">{s.name}</div>
+                          <div className="station-card-address">{s.address}</div>
+                        </div>
+                        {isSelected && (
+                          <span style={{
+                            width: 22, height: 22, borderRadius: '50%',
+                            background: '#22c55e', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '0.75rem', flexShrink: 0,
+                          }}>✓</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
             <div className="form-group-dash" style={{ marginTop: '1rem' }}>
               <label>Description * (min 50 characters)</label>
               <textarea
@@ -172,7 +271,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
             </div>
           </div>
 
-          {/* Section 2: Complainant */}
+          {/* ── Section 2: Complainant ── */}
           <div>
             <div className="form-section-title">2. Complainant Details</div>
             <div className="form-row-2">
@@ -198,7 +297,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
             </div>
           </div>
 
-          {/* Section 3: Witness */}
+          {/* ── Section 3: Witness ── */}
           <div>
             <div className="form-section-title">3. Witness Information (optional)</div>
             <div className="form-group-dash">
@@ -213,7 +312,11 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
           </div>
 
           <div className="action-bar">
-            <button type="submit" className="btn-primary" disabled={loading || descLen < 50}>
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={loading || descLen < 50 || !form.station_id}
+            >
               {loading ? 'Filing FIR…' : 'Submit FIR'}
             </button>
             <button type="button" className="btn-secondary" onClick={onCancel}>

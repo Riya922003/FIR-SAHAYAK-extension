@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { FIR, FIRStatus, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import { type FIR, type FIRStatus, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   firs: FIR[];

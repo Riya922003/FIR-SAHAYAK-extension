@@ -1,9 +1,12 @@
+import uuid
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select, func
 from typing import List, Optional
 from pydantic import BaseModel
 
+from app.core.config import settings
 from app.core.database import get_session
 from app.core.security import require_roles
 from app.models.user import User
@@ -92,10 +95,66 @@ async def create_station(
 @router.get("/stations", response_model=List[StationResponse])
 async def list_stations(
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(get_session),
 ):
     result = await session.exec(select(PoliceStation))
     return result.all()
+
+
+@router.get("/stations/nearby", response_model=List[StationResponse])
+async def stations_nearby(
+    address: str = Query(..., min_length=5, description="Incident address"),
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Public endpoint. Geocodes the address via Google, finds nearby police
+    stations from Places API, upserts them into the local DB, and returns
+    them with real DB IDs so the FIR form can use station_id directly.
+    """
+    from app.services.places import geocode_address, nearby_police_stations
+
+    if not settings.GOOGLE_API_KEY:
+        raise HTTPException(503, detail="Location service not configured.")
+
+    location = await geocode_address(address, settings.GOOGLE_API_KEY)
+    if not location:
+        raise HTTPException(
+            422,
+            detail="Could not resolve location. Try including city or landmark name.",
+        )
+
+    places = await nearby_police_stations(
+        location["lat"], location["lng"], settings.GOOGLE_API_KEY
+    )
+    if not places:
+        places = await nearby_police_stations(
+            location["lat"], location["lng"], settings.GOOGLE_API_KEY, radius=15000
+        )
+
+    results: list[StationResponse] = []
+    for p in places:
+        existing = (
+            await session.exec(
+                select(PoliceStation).where(PoliceStation.name == p["name"])
+            )
+        ).first()
+
+        if existing:
+            results.append(StationResponse.model_validate(existing))
+        else:
+            station = PoliceStation(
+                id=str(uuid.uuid4()),
+                name=p["name"],
+                district=location["district"] or "Unknown",
+                state=location["state"],
+                address=p["address"],
+                phone=None,
+            )
+            session.add(station)
+            await session.flush()
+            results.append(StationResponse.model_validate(station))
+
+    await session.commit()
+    return results
 
 
 # ── User Management ───────────────────────────────────────────────────────────
