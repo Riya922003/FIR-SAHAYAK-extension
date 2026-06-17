@@ -106,24 +106,27 @@ async def stations_nearby(
     session: AsyncSession = Depends(get_session),
 ):
     """
-    Public endpoint. Uses Google Places Text Search to find police stations
-    near the given address — single API call, only Places API required.
+    Public endpoint. Uses OpenStreetMap (Nominatim + Overpass) to find police
+    stations near the given address. Completely free — no API key required.
     Upserts results into the local DB and returns them with real DB IDs.
     """
-    from app.services.places import search_police_stations_by_text
+    from app.services.places import geocode_nominatim, overpass_police_stations
 
-    if not settings.GOOGLE_MAPS_API_KEY:
-        raise HTTPException(503, detail="Location service not configured. Set GOOGLE_MAPS_API_KEY.")
+    location = await geocode_nominatim(address)
+    if not location:
+        raise HTTPException(
+            422,
+            detail="Could not find that location. Try adding the city or district name.",
+        )
 
-    try:
-        places = await search_police_stations_by_text(address, settings.GOOGLE_MAPS_API_KEY)
-    except ValueError as e:
-        raise HTTPException(503, detail=str(e))
+    places = await overpass_police_stations(location["lat"], location["lng"])
+    if not places:
+        places = await overpass_police_stations(location["lat"], location["lng"], radius=15000)
 
     if not places:
         raise HTTPException(
             404,
-            detail="No police stations found near this location. Try adding the district or city name.",
+            detail="No police stations found near this location. Try a nearby landmark or area name.",
         )
 
     results: list[StationResponse] = []
@@ -137,17 +140,12 @@ async def stations_nearby(
         if existing:
             results.append(StationResponse.model_validate(existing))
         else:
-            # Extract state/district from formatted_address (best-effort)
-            addr_parts = p["address"].split(",")
-            state = addr_parts[-2].strip() if len(addr_parts) >= 2 else "India"
-            district = addr_parts[-3].strip() if len(addr_parts) >= 3 else state
-
             station = PoliceStation(
                 id=str(uuid.uuid4()),
                 name=p["name"],
-                district=district,
-                state=state,
-                address=p["address"],
+                district=location["district"] or "Unknown",
+                state=location["state"],
+                address=p["address"] or address,
                 phone=None,
             )
             session.add(station)
