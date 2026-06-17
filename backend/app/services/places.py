@@ -97,32 +97,17 @@ async def geocode_nominatim(address: str) -> Optional[dict]:
     return None
 
 
-async def overpass_police_stations(lat: float, lng: float, radius: int = 10000) -> list[dict]:
-    """
-    Search OpenStreetMap Overpass for police stations within `radius` metres.
-    Default radius raised to 10 km — eliminates the need for a second fallback call.
-    Overpass query timeout: 8s. HTTP client timeout: 12s.
-    Returns up to 10 results, or [] on timeout/error.
-    """
-    query = (
-        f"[out:json][timeout:8];"
-        f"("
-        f'node["amenity"="police"](around:{radius},{lat},{lng});'
-        f'way["amenity"="police"](around:{radius},{lat},{lng});'
-        f");"
-        f"out body center;"
-    )
-    try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            r = await client.post(OVERPASS_URL, data={"data": query})
-            data = r.json()
-    except (httpx.TimeoutException, httpx.HTTPError, ValueError):
-        return []
-
+def _parse_overpass_elements(elements: list, fallback_lat: float, fallback_lng: float) -> list[dict]:
     stations = []
-    for el in data.get("elements", [])[:10]:
-        tags  = el.get("tags", {})
-        name  = tags.get("name") or tags.get("name:en") or "Police Station"
+    seen_ids: set = set()
+    for el in elements[:15]:
+        el_id = (el["type"], el["id"])
+        if el_id in seen_ids:
+            continue
+        seen_ids.add(el_id)
+
+        tags = el.get("tags", {})
+        name = tags.get("name") or tags.get("name:en") or "Police Station"
         addr_parts = [
             tags.get("addr:housenumber", ""),
             tags.get("addr:street", ""),
@@ -136,13 +121,84 @@ async def overpass_police_stations(lat: float, lng: float, radius: int = 10000) 
             elat, elng = el["lat"], el["lon"]
         else:
             center = el.get("center", {})
-            elat   = center.get("lat", lat)
-            elng   = center.get("lon", lng)
+            elat = center.get("lat", fallback_lat)
+            elng = center.get("lon", fallback_lng)
 
+        stations.append({"name": name, "address": address, "lat": elat, "lng": elng})
+    return stations
+
+
+async def overpass_police_stations(lat: float, lng: float, radius: int = 15000) -> list[dict]:
+    """
+    Search OpenStreetMap Overpass for police stations within `radius` metres.
+    Uses both amenity=police AND name-based search ("Police Station", "Thana")
+    because OSM data in India is often incomplete — many stations have a name
+    tag but no amenity tag.
+    Overpass query timeout: 10s. HTTP client timeout: 13s.
+    Returns up to 15 results, or [] on timeout/error.
+    """
+    query = (
+        f"[out:json][timeout:10];"
+        f"("
+        # Standard amenity tag
+        f'node["amenity"="police"](around:{radius},{lat},{lng});'
+        f'way["amenity"="police"](around:{radius},{lat},{lng});'
+        # Name-based: covers stations tagged by name only (common in India)
+        f'node["name"~"[Pp]olice [Ss]tation"](around:{radius},{lat},{lng});'
+        f'way["name"~"[Pp]olice [Ss]tation"](around:{radius},{lat},{lng});'
+        f'node["name"~"[Tt]hana",i](around:{radius},{lat},{lng});'
+        f'node["name"~"[Cc]hau?ki",i](around:{radius},{lat},{lng});'
+        f");"
+        f"out body center;"
+    )
+    try:
+        async with httpx.AsyncClient(timeout=13) as client:
+            r = await client.post(OVERPASS_URL, data={"data": query})
+            data = r.json()
+    except (httpx.TimeoutException, httpx.HTTPError, ValueError):
+        return []
+
+    return _parse_overpass_elements(data.get("elements", []), lat, lng)
+
+
+async def nominatim_police_stations(lat: float, lng: float) -> list[dict]:
+    """
+    Fallback search: ask Nominatim for amenity=police within a ~17 km bounding box.
+    Used when Overpass returns nothing (sparse OSM data in the area).
+    Timeout: 5s.
+    """
+    delta = 0.15  # ~17 km in each direction
+    params = {
+        "amenity": "police",
+        "format": "json",
+        "limit": 10,
+        "countrycodes": "in",
+        "viewbox": f"{lng - delta},{lat + delta},{lng + delta},{lat - delta}",
+        "bounded": "1",
+        "addressdetails": "1",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=5, headers=_HEADERS) as client:
+            r = await client.get(NOMINATIM_URL, params=params)
+            results = r.json()
+    except (httpx.TimeoutException, httpx.HTTPError, ValueError):
+        return []
+
+    stations = []
+    for hit in results:
+        addr = hit.get("address", {})
+        name = hit.get("name") or "Police Station"
+        addr_parts = [
+            addr.get("road", ""),
+            addr.get("suburb", "") or addr.get("neighbourhood", ""),
+            addr.get("city", "") or addr.get("town", "") or addr.get("county", ""),
+            addr.get("state", ""),
+        ]
+        address = ", ".join(p for p in addr_parts if p)
         stations.append({
-            "name":    name,
+            "name": name,
             "address": address,
-            "lat":     elat,
-            "lng":     elng,
+            "lat": float(hit["lat"]),
+            "lng": float(hit["lon"]),
         })
     return stations

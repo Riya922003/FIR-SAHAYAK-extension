@@ -114,7 +114,7 @@ async def stations_nearby(
     Upserts results into the local DB and returns them with real DB IDs.
     """
     try:
-        from app.services.places import geocode_nominatim, overpass_police_stations
+        from app.services.places import geocode_nominatim, overpass_police_stations, nominatim_police_stations
 
         location = await geocode_nominatim(address)
         if not location:
@@ -124,6 +124,10 @@ async def stations_nearby(
             )
 
         places = await overpass_police_stations(location["lat"], location["lng"])
+
+        # Overpass data is sparse in India — fall back to Nominatim amenity search
+        if not places:
+            places = await nominatim_police_stations(location["lat"], location["lng"])
 
         if not places:
             raise HTTPException(
