@@ -52,6 +52,8 @@ class FIR(SQLModel, table=True):
     # Internal notes (officer only)
     officer_notes: Optional[str] = None
 
+    acknowledged_at: Optional[datetime] = Field(default=None)
+
     # Reapplication tracking
     reapplied_from_id: Optional[str] = Field(default=None, foreign_key="firs.id")
     reapply_count: int = Field(default=0)

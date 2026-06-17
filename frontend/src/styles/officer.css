@@ -1,0 +1,306 @@
+/* ============================================================
+   FIR Sahayak — Officer / Admin Portal Styles
+   ============================================================ */
+
+/* Officer sidebar accent — blue instead of citizen's green */
+.officer-sidebar .sidebar-item.active.officer-active {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border-left: 3px solid #3b82f6;
+}
+
+.officer-sidebar .sidebar-item:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+/* Officer identity block in sidebar */
+.sidebar-user {
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  margin-bottom: 0.25rem;
+}
+
+.sidebar-user-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-role {
+  font-size: 0.68rem;
+  color: #64748b;
+  text-transform: capitalize;
+  margin-top: 0.1rem;
+}
+
+.sidebar-logout {
+  color: #f87171 !important;
+}
+
+.sidebar-logout:hover {
+  background: rgba(248, 113, 113, 0.1) !important;
+  color: #ef4444 !important;
+}
+
+/* ── Stats row ── */
+.officer-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.officer-stat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.1rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-top: 3px solid #94a3b8;
+  text-align: center;
+}
+
+.officer-stat-num {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+
+.officer-stat-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+
+/* ── Empty state ── */
+.officer-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #64748b;
+}
+
+.officer-empty-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f0fdf4;
+  border: 2px solid #86efac;
+  color: #16a34a;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem;
+}
+
+.officer-empty h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #334155;
+  margin: 0 0 0.4rem;
+}
+
+.officer-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* ── Toast notification ── */
+.officer-toast {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 0.75rem 1.1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+/* ── Acknowledge button ── */
+.btn-acknowledge {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btn-acknowledge:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-acknowledge:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── FIR link button (table cell) ── */
+.fir-link-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Status update form ── */
+.status-update-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.status-options {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.status-option-btn {
+  padding: 0.6rem 1.25rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #475569;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.status-option-btn:hover {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.status-option-btn.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.status-option-btn.danger:hover,
+.status-option-btn.danger.selected {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.rejection-warning {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.officer-textarea {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #111;
+  background: #fafafa;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.officer-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background: #fff;
+}
+
+.officer-input {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #111;
+  background: #fafafa;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.officer-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  background: #fff;
+}
+
+.btn-status-submit {
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.btn-status-submit:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-status-submit.danger {
+  background: #ef4444;
+}
+
+.btn-status-submit.danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-status-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .officer-stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .officer-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}

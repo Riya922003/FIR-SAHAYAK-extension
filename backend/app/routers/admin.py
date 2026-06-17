@@ -228,6 +228,23 @@ async def update_user_role(
     return {"message": f"Role updated to {new_role}"}
 
 
+@router.patch("/users/{user_id}/station")
+async def assign_user_station(
+    user_id: str,
+    station_id: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    _: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY, UserRole.STATION_ADMIN)),
+):
+    """Assign or unassign an officer to a police station (pass station_id=None to unassign)."""
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.station_id = station_id
+    session.add(user)
+    await session.commit()
+    return {"message": "Station assignment updated"}
+
+
 @router.patch("/users/{user_id}/deactivate")
 async def deactivate_user(
     user_id: str,

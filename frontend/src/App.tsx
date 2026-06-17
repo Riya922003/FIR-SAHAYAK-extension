@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CitizenDashboard from './pages/CitizenDashboard';
+import OfficerDashboard from './pages/OfficerDashboard';
 import { Component, ReactNode } from 'react';
 
 /* ── Error Boundary — catches render errors and shows them instead of blank ── */
@@ -39,9 +40,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
   }
 }
 
-function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+const OFFICER_ROLES = ['officer', 'station_admin', 'higher_authority'];
+
+function ProtectedRoute({ children, requireOfficer = false }: { children: ReactNode; requireOfficer?: boolean }) {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (requireOfficer && user && !OFFICER_ROLES.includes(user.role)) return <Navigate to="/dashboard" replace />;
+  if (!requireOfficer && user && OFFICER_ROLES.includes(user.role)) return <Navigate to="/officer" replace />;
+  return <>{children}</>;
 }
 
 function AppRoutes() {
@@ -56,6 +62,16 @@ function AppRoutes() {
           <ProtectedRoute>
             <ErrorBoundary>
               <CitizenDashboard />
+            </ErrorBoundary>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/officer"
+        element={
+          <ProtectedRoute requireOfficer>
+            <ErrorBoundary>
+              <OfficerDashboard />
             </ErrorBoundary>
           </ProtectedRoute>
         }

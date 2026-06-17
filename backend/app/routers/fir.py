@@ -250,6 +250,73 @@ async def escalate_fir(
 
 # ── Officer routes ────────────────────────────────────────────────────────────
 
+# Valid status transitions an officer can make (enforced server-side)
+VALID_TRANSITIONS: dict = {
+    FIRStatus.ACKNOWLEDGED:       [FIRStatus.UNDER_INVESTIGATION],
+    FIRStatus.UNDER_INVESTIGATION:[FIRStatus.RESOLVED, FIRStatus.REJECTED],
+}
+
+
+@router.post("/{fir_id}/acknowledge", response_model=FIRResponse)
+async def acknowledge_fir(
+    fir_id: str,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
+):
+    """Claim an unassigned FIR — sets officer_id so no other officer can pick it up."""
+    fir = await session.get(FIR, fir_id)
+    if not fir:
+        raise HTTPException(status_code=404, detail="FIR not found")
+    if fir.status != FIRStatus.SUBMITTED:
+        raise HTTPException(status_code=400, detail=f"FIR is not in submitted state (current: {fir.status})")
+    if fir.officer_id is not None:
+        raise HTTPException(status_code=409, detail="FIR already claimed by another officer")
+
+    old_status = fir.status
+    fir.status = FIRStatus.ACKNOWLEDGED
+    fir.officer_id = current_user.id
+    fir.acknowledged_at = datetime.utcnow()
+    fir.updated_at = datetime.utcnow()
+    session.add(fir)
+    await log_status_change(session, fir.id, old_status, FIRStatus.ACKNOWLEDGED, current_user.id, "FIR acknowledged and claimed")
+    await session.commit()
+    await session.refresh(fir)
+    return fir
+
+
+@router.get("/station/unassigned", response_model=List[FIRResponse])
+async def get_unassigned_firs(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
+):
+    """Submitted FIRs for this station not yet claimed by any officer — oldest first."""
+    if not current_user.station_id:
+        raise HTTPException(status_code=400, detail="Your account has no station assigned. Contact your admin.")
+    query = (
+        select(FIR)
+        .where(FIR.station_id == current_user.station_id)
+        .where(FIR.status == FIRStatus.SUBMITTED)
+        .where(FIR.officer_id.is_(None))
+        .order_by(FIR.created_at.asc())
+    )
+    result = await session.exec(query)
+    return result.all()
+
+
+@router.get("/station/mine", response_model=List[FIRResponse])
+async def get_my_assigned_firs(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
+    status_filter: Optional[FIRStatus] = Query(default=None),
+):
+    """FIRs assigned to the calling officer, optionally filtered by status."""
+    query = select(FIR).where(FIR.officer_id == current_user.id)
+    if status_filter:
+        query = query.where(FIR.status == status_filter)
+    result = await session.exec(query.order_by(FIR.updated_at.desc()))
+    return result.all()
+
+
 @router.get("/station/all", response_model=List[FIRResponse])
 async def get_station_firs(
     session: AsyncSession = Depends(get_session),
@@ -276,11 +343,23 @@ async def update_fir_status(
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
 
+    # Officers and station admins must follow the transition map
+    if current_user.role in (UserRole.OFFICER, UserRole.STATION_ADMIN):
+        allowed = VALID_TRANSITIONS.get(fir.status, [])
+        if payload.new_status not in allowed:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot move FIR from '{fir.status}' to '{payload.new_status}'",
+            )
+
+    # Rejection always requires a written reason
+    if payload.new_status == FIRStatus.REJECTED and not (payload.notes or "").strip():
+        raise HTTPException(status_code=400, detail="A rejection reason is required and will be shown to the citizen")
+
     old_status = fir.status
     fir.status = payload.new_status
     if payload.ipc_sections:
         fir.ipc_sections = payload.ipc_sections
-    fir.officer_id = current_user.id
     fir.updated_at = datetime.utcnow()
     session.add(fir)
     await log_status_change(session, fir.id, old_status, payload.new_status, current_user.id, payload.notes)

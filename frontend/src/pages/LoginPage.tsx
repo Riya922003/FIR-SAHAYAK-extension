@@ -1,23 +1,36 @@
-﻿import { useState, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { loginUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
 
+type LoginRole = 'citizen' | 'officer' | 'authority';
+
+const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegister: boolean; hint?: string }> = {
+  citizen:   { label: 'Citizen',           subtitle: 'File and track your FIR complaints',              showRegister: true  },
+  officer:   { label: 'Police Officer',    subtitle: 'Manage and resolve FIRs at your station',         showRegister: false, hint: 'Credentials are provided by your Station Admin.' },
+  authority: { label: 'Higher Authority',  subtitle: 'Oversight portal for escalated cases',            showRegister: false, hint: 'Credentials are provided by the system administrator.' },
+};
+
+const OFFICER_ROLES = ['officer', 'station_admin', 'higher_authority'];
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
 
+  const [selectedRole, setSelectedRole] = useState<LoginRole>('citizen');
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const config = ROLE_CONFIG[selectedRole];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const fillTestCreds = () => {
-    setForm({ email: 'riya@test.com', password: 'Test@1234' });
+  const handleRoleChange = (role: LoginRole) => {
+    setSelectedRole(role);
     setError('');
   };
 
@@ -27,8 +40,24 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const data = await loginUser(form);
+      const userRole = data.user.role;
+
+      // Guard: warn if the selected portal doesn't match the account role
+      if (selectedRole === 'citizen' && OFFICER_ROLES.includes(userRole)) {
+        setError('This account is not a citizen account. Please select the correct portal above.');
+        return;
+      }
+      if (selectedRole !== 'citizen' && userRole === 'citizen') {
+        setError('This is a citizen account. Please use the Citizen portal.');
+        return;
+      }
+
       login(data.access_token, data.refresh_token, data.user);
-      navigate('/dashboard');
+      if (OFFICER_ROLES.includes(userRole)) {
+        navigate('/officer');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -38,28 +67,37 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
-      {/* Brand */}
       <Link to="/" className="auth-brand">
         <div className="auth-brand-bar" />
         <div className="auth-brand-text">
           <h1>FIR Sahayak</h1>
-          <span>Online FIR Filing Portal â€” Government of India</span>
+          <span>Online FIR Filing Portal — Government of India</span>
         </div>
       </Link>
 
       <div className="auth-card">
-        <h2>Welcome back</h2>
-        <p className="auth-subtitle">Sign in to your account to file or track FIRs</p>
-
-        {/* Test credentials banner */}
-        <div className="test-creds-banner">
-          <span>ðŸ§ª Testing?</span>
-          <button type="button" className="test-creds-btn" onClick={fillTestCreds}>
-            Fill test credentials
-          </button>
+        {/* Role selector */}
+        <div className="role-selector">
+          {(Object.keys(ROLE_CONFIG) as LoginRole[]).map(role => (
+            <button
+              key={role}
+              type="button"
+              className={`role-tab${selectedRole === role ? ' active' : ''}`}
+              onClick={() => handleRoleChange(role)}
+            >
+              {ROLE_CONFIG[role].label}
+            </button>
+          ))}
         </div>
 
-        {error && <div className="auth-error">âš  {error}</div>}
+        <h2>Welcome back</h2>
+        <p className="auth-subtitle">{config.subtitle}</p>
+
+        {config.hint && (
+          <div className="auth-hint">ℹ {config.hint}</div>
+        )}
+
+        {error && <div className="auth-error">⚠ {error}</div>}
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <div className="form-group">
@@ -89,16 +127,18 @@ export default function LoginPage() {
           </div>
 
           <button type="submit" className="auth-submit-btn" disabled={loading}>
-            {loading ? 'Signing inâ€¦' : 'Sign In â†’'}
+            {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
 
-        <div className="auth-footer">
-          Don't have an account?&nbsp;<Link to="/register">Register here</Link>
-        </div>
+        {config.showRegister && (
+          <div className="auth-footer">
+            Don't have an account?&nbsp;<Link to="/register">Register here</Link>
+          </div>
+        )}
       </div>
 
-      <Link to="/" className="auth-back">â† Back to home</Link>
+      <Link to="/" className="auth-back">← Back to home</Link>
     </div>
   );
 }

@@ -77,6 +77,7 @@ class FIRResponse(BaseModel):
     complainant_address: str
     complainant_phone: str
     witness_info: Optional[str]
+    acknowledged_at: Optional[datetime] = None
     reapply_count: int
     created_at: datetime
     updated_at: datetime
