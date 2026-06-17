@@ -10,23 +10,20 @@ import '../styles/dashboard.css';
 
 type View = 'overview' | 'my-firs' | 'detail' | 'file-fir' | 'profile';
 
-const NAV_ITEMS: { view: View; label: string; disabled?: boolean }[] = [
-  { view: 'overview',  label: 'Overview' },
-  { view: 'my-firs',   label: 'My FIRs' },
-  { view: 'file-fir',  label: 'File Complaint' },
-];
-
-const NAV_BOTTOM = [
-  { view: 'profile' as View, label: 'My Profile' },
+const NAV_ITEMS: { view: View; label: string; icon: string; disabled?: boolean }[] = [
+  { view: 'overview', label: 'Overview',       icon: '🏠' },
+  { view: 'my-firs',  label: 'My FIRs',        icon: '📋' },
+  { view: 'file-fir', label: 'File Complaint', icon: '✏️' },
 ];
 
 export default function CitizenDashboard() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [view, setView] = useState<View>('overview');
   const [selectedFirId, setSelectedFirId] = useState<string | null>(null);
   const [firs, setFirs] = useState<FIR[]>([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
+  const [collapsed, setCollapsed] = useState(false);
 
   const fetchFIRs = useCallback(async () => {
     if (!token) return;
@@ -63,10 +60,23 @@ export default function CitizenDashboard() {
   return (
     <div className="dashboard-layout">
       {/* ── Sidebar ── */}
-      <aside className="dashboard-sidebar">
+      <aside className={`dashboard-sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
         <div className="sidebar-brand">
-          <h2>FIR Sahayak</h2>
-          <span>Citizen Portal</span>
+          <div className="sidebar-brand-row">
+            {!collapsed && (
+              <div className="sidebar-brand-text">
+                <h2>FIR Sahayak</h2>
+                <span>Citizen Portal</span>
+              </div>
+            )}
+            <button
+              className="sidebar-toggle"
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? '›' : '‹'}
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
@@ -75,34 +85,50 @@ export default function CitizenDashboard() {
               key={item.view}
               className={`sidebar-item${view === item.view || (item.view === 'my-firs' && view === 'detail') ? ' active' : ''}${item.disabled ? ' disabled' : ''}`}
               onClick={() => !item.disabled && navigate(item.view)}
+              title={collapsed ? item.label : undefined}
             >
-              {item.label}
+              <span className="item-icon">{item.icon}</span>
+              <span className="item-label">{item.label}</span>
             </button>
           ))}
 
           <div className="sidebar-divider" />
 
-          <button className="sidebar-item disabled" title="Coming soon">
-            AI Help
-            <span style={{ marginLeft: 'auto', fontSize: '0.65rem', background: 'rgba(255,255,255,0.1)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>Soon</span>
+          <button
+            className="sidebar-item disabled"
+            title={collapsed ? 'AI Help (Coming soon)' : undefined}
+          >
+            <span className="item-icon">🤖</span>
+            <span className="item-label">
+              AI Help
+              <span className="soon-badge">Soon</span>
+            </span>
           </button>
 
           <div className="sidebar-divider" style={{ marginTop: 'auto' }} />
 
-          {NAV_BOTTOM.map(item => (
-            <button
-              key={item.view}
-              className={`sidebar-item${view === item.view ? ' active' : ''}`}
-              onClick={() => navigate(item.view)}
-            >
-              {item.label}
-            </button>
-          ))}
+          <button
+            className={`sidebar-item${view === 'profile' ? ' active' : ''}`}
+            onClick={() => navigate('profile')}
+            title={collapsed ? 'My Profile' : undefined}
+          >
+            <span className="item-icon">👤</span>
+            <span className="item-label">My Profile</span>
+          </button>
+
+          <button
+            className="sidebar-item sidebar-logout"
+            onClick={logout}
+            title={collapsed ? 'Sign Out' : undefined}
+          >
+            <span className="item-icon">🚪</span>
+            <span className="item-label">Sign Out</span>
+          </button>
         </nav>
       </aside>
 
       {/* ── Main content ── */}
-      <main className="dashboard-main">
+      <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
 
         {successMsg && (
           <div style={{

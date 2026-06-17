@@ -464,6 +464,11 @@
   flex-shrink: 0;
 }
 
+/* ── Officer collapsed sidebar active fix ── */
+.officer-sidebar.sidebar-collapsed .sidebar-item.active.officer-active {
+  padding-left: calc(0.65rem - 3px);
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .officer-stats {

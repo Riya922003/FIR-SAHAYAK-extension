@@ -161,17 +161,22 @@ async def cancel_fir(
     if not fir or fir.citizen_id != current_user.id:
         raise HTTPException(status_code=404, detail="FIR not found")
 
-    if fir.status not in [FIRStatus.SUBMITTED, FIRStatus.DRAFT]:
+    closeable = [FIRStatus.DRAFT, FIRStatus.SUBMITTED, FIRStatus.ACKNOWLEDGED]
+    if fir.status not in closeable:
         raise HTTPException(
             status_code=400,
-            detail="Can only cancel a submitted or draft FIR",
+            detail="FIR can only be closed when it is in draft, submitted, or acknowledged status",
         )
 
     old_status = fir.status
-    fir.status = FIRStatus.CLOSED
+    # If an officer already claimed it, mark REJECTED so it surfaces in their My Cases dashboard
+    new_status = FIRStatus.REJECTED if old_status == FIRStatus.ACKNOWLEDGED else FIRStatus.CLOSED
+    note = "Withdrawn by citizen" if new_status == FIRStatus.REJECTED else "Closed by citizen"
+
+    fir.status = new_status
     fir.updated_at = datetime.utcnow()
     session.add(fir)
-    await log_status_change(session, fir.id, old_status, FIRStatus.CLOSED, current_user.id, "Cancelled by citizen")
+    await log_status_change(session, fir.id, old_status, new_status, current_user.id, note)
     await session.commit()
     await session.refresh(fir)
     return fir
@@ -254,6 +259,7 @@ async def escalate_fir(
 VALID_TRANSITIONS: dict = {
     FIRStatus.ACKNOWLEDGED:       [FIRStatus.UNDER_INVESTIGATION],
     FIRStatus.UNDER_INVESTIGATION:[FIRStatus.RESOLVED, FIRStatus.REJECTED],
+    FIRStatus.RESOLVED:           [FIRStatus.CLOSED],
 }
 
 

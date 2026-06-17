@@ -67,12 +67,12 @@ export default function UnassignedQueue({ onViewFIR }: Props) {
 
   return (
     <div>
-      <div className="dash-header">
+      <div className="dash-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
         <div>
           <h1>Unassigned Queue</h1>
           <p>Submitted FIRs not yet claimed by any officer — oldest first</p>
         </div>
-        <button className="btn-secondary" onClick={load}>↻ Refresh</button>
+        <button className="btn-secondary" style={{ flexShrink: 0 }} onClick={load}>↻ Refresh</button>
       </div>
 
       {toast && <div className="officer-toast">{toast}</div>}

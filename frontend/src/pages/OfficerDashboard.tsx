@@ -16,6 +16,7 @@ export default function OfficerDashboard() {
   const [selectedFirId, setSelectedFirId] = useState<string | null>(null);
   const [detailSource, setDetailSource] = useState<View>('queue');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
 
   const isAdmin = user?.role === 'station_admin' || user?.role === 'higher_authority';
 
@@ -40,31 +41,50 @@ export default function OfficerDashboard() {
   return (
     <div className="dashboard-layout">
       {/* Sidebar */}
-      <aside className="dashboard-sidebar officer-sidebar">
+      <aside className={`dashboard-sidebar officer-sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
         <div className="sidebar-brand">
-          <h2>FIR Sahayak</h2>
-          <span>{isAdmin ? 'Admin Portal' : 'Officer Portal'}</span>
+          <div className="sidebar-brand-row">
+            {!collapsed && (
+              <div className="sidebar-brand-text">
+                <h2>FIR Sahayak</h2>
+                <span>{isAdmin ? 'Admin Portal' : 'Officer Portal'}</span>
+              </div>
+            )}
+            <button
+              className="sidebar-toggle"
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? '›' : '‹'}
+            </button>
+          </div>
         </div>
 
         <nav className="sidebar-nav">
           <button
             className={`sidebar-item${isActive('queue') ? ' active officer-active' : ''}`}
             onClick={() => setView('queue')}
+            title={collapsed ? 'Unassigned Queue' : undefined}
           >
-            Unassigned Queue
+            <span className="item-icon">📥</span>
+            <span className="item-label">Unassigned Queue</span>
           </button>
           <button
             className={`sidebar-item${isActive('my-cases') ? ' active officer-active' : ''}`}
             onClick={() => setView('my-cases')}
+            title={collapsed ? 'My Cases' : undefined}
           >
-            My Cases
+            <span className="item-icon">📁</span>
+            <span className="item-label">My Cases</span>
           </button>
           {isAdmin && (
             <button
               className={`sidebar-item${isActive('all-cases') ? ' active officer-active' : ''}`}
               onClick={() => setView('all-cases')}
+              title={collapsed ? 'All Station Cases' : undefined}
             >
-              All Station Cases
+              <span className="item-icon">🗂️</span>
+              <span className="item-label">All Station Cases</span>
             </button>
           )}
 
@@ -73,18 +93,25 @@ export default function OfficerDashboard() {
           <button
             className={`sidebar-item${view === 'profile' ? ' active officer-active' : ''}`}
             onClick={() => setView('profile')}
+            title={collapsed ? 'My Profile' : undefined}
           >
-            My Profile
+            <span className="item-icon">👤</span>
+            <span className="item-label">My Profile</span>
           </button>
 
-          <button className="sidebar-item sidebar-logout" onClick={logout}>
-            Sign Out
+          <button
+            className="sidebar-item sidebar-logout"
+            onClick={logout}
+            title={collapsed ? 'Sign Out' : undefined}
+          >
+            <span className="item-icon">🚪</span>
+            <span className="item-label">Sign Out</span>
           </button>
         </nav>
       </aside>
 
       {/* Main content */}
-      <main className="dashboard-main">
+      <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
         {view === 'queue' && (
           <UnassignedQueue key={refreshKey} onViewFIR={id => goToDetail(id, 'queue')} />
         )}

@@ -1,10 +1,10 @@
 import { useAuth } from '../../context/AuthContext';
 
 const ROLE_LABELS: Record<string, string> = {
-  CITIZEN: 'Citizen',
-  OFFICER: 'Police Officer',
-  STATION_ADMIN: 'Station Admin',
-  HIGHER_AUTHORITY: 'Higher Authority',
+  citizen:          'Citizen',
+  officer:          'Police Officer',
+  station_admin:    'Station Admin',
+  higher_authority: 'Higher Authority',
 };
 
 export default function Profile() {

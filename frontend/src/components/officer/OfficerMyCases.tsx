@@ -13,6 +13,7 @@ const STATUS_FILTERS: { label: string; value: FIRStatus | 'all' }[] = [
   { label: 'Investigating',       value: 'under_investigation' },
   { label: 'Resolved',            value: 'resolved' },
   { label: 'Rejected',            value: 'rejected' },
+  { label: 'Closed',              value: 'closed' },
 ];
 
 export default function OfficerMyCases({ onViewFIR }: Props) {
@@ -50,12 +51,12 @@ export default function OfficerMyCases({ onViewFIR }: Props) {
 
   return (
     <div>
-      <div className="dash-header">
+      <div className="dash-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
         <div>
           <h1>My Cases</h1>
           <p>FIRs assigned to you</p>
         </div>
-        <button className="btn-secondary" onClick={load}>↻ Refresh</button>
+        <button className="btn-secondary" style={{ flexShrink: 0 }} onClick={load}>↻ Refresh</button>
       </div>
 
       {error && <div className="dash-error">⚠ {error}</div>}

@@ -77,10 +77,12 @@ export async function getStation(stationId: string): Promise<{ id: string; name:
 export const OFFICER_TRANSITIONS: Record<string, string[]> = {
   acknowledged:       ['under_investigation'],
   under_investigation:['resolved', 'rejected'],
+  resolved:           ['closed'],
 };
 
 export const NEXT_STATUS_LABELS: Record<string, string> = {
   under_investigation: 'Start Investigation',
   resolved:            'Mark as Resolved',
   rejected:            'Reject FIR',
+  closed:              'Close / Archive Case',
 };

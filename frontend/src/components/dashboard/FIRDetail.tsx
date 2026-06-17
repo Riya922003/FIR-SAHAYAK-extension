@@ -51,7 +51,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
   if (!fir) return null;
 
   const isTerminal = TERMINAL.includes(fir.status);
-  const canCancel = ['submitted', 'draft'].includes(fir.status);
+  const canCancel = ['submitted', 'draft', 'acknowledged'].includes(fir.status);
 
   // Build timeline steps
   const steps = isTerminal
@@ -174,16 +174,18 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
           <div className="action-bar">
             {canCancel && !cancelConfirm && (
               <button className="btn-danger" onClick={() => setCancelConfirm(true)}>
-                Cancel FIR
+                Close / Withdraw FIR
               </button>
             )}
             {cancelConfirm && (
               <>
                 <span style={{ fontSize: '0.875rem', color: '#dc2626', alignSelf: 'center' }}>
-                  Are you sure you want to cancel this FIR?
+                  {fir.status === 'acknowledged'
+                    ? 'This FIR has been acknowledged by an officer. Closing it will mark it as rejected on their end.'
+                    : 'Are you sure you want to close this FIR? This cannot be undone.'}
                 </span>
                 <button className="btn-danger" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? 'Cancelling…' : 'Yes, Cancel'}
+                  {cancelling ? 'Closing…' : 'Yes, Close FIR'}
                 </button>
                 <button className="btn-secondary" onClick={() => setCancelConfirm(false)}>
                   No, Keep It
