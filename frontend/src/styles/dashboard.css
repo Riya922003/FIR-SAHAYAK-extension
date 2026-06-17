@@ -952,6 +952,121 @@
   color: #64748b;
 }
 
+/* ── FIR Step Timeline ── */
+.fir-steps {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.fir-step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.fir-step-dot {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  color: #94a3b8;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.fir-step-dot.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+}
+
+.fir-step-dot.done {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #fff;
+}
+
+.fir-step-label {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.fir-step-label.active { color: #3b82f6; font-weight: 700; }
+.fir-step-label.done   { color: #22c55e; font-weight: 600; }
+
+.fir-step-conn {
+  flex: 1;
+  height: 2px;
+  background: #e2e8f0;
+  margin: 0 0.3rem;
+  margin-bottom: 1.35rem;
+  min-width: 16px;
+  transition: background 0.2s;
+}
+
+.fir-step-conn.done { background: #22c55e; }
+
+/* ── FIR Review Block ── */
+.fir-review-block {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.fir-review-head {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.6rem;
+}
+
+.fir-review-row {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.875rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: flex-start;
+}
+
+.fir-review-row:last-child { border-bottom: none; }
+
+.fir-review-row span:first-child {
+  color: #64748b;
+  min-width: 80px;
+  flex-shrink: 0;
+  padding-top: 0.05rem;
+}
+
+.fir-review-row span:last-child {
+  color: #1e293b;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.fir-review-desc {
+  font-size: 0.875rem;
+  color: #334155;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  margin-top: 0.25rem;
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .fir-detail-grid { grid-template-columns: 1fr; }

@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, Fragment } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { fileFIR, getNearbyStations, type PoliceStation, type IncidentType, INCIDENT_LABELS } from '../../api/fir';
 
@@ -8,6 +8,13 @@ interface Props {
 }
 
 const INCIDENT_TYPES = Object.entries(INCIDENT_LABELS) as [IncidentType, string][];
+
+const STEPS = [
+  { label: 'Incident' },
+  { label: 'Location' },
+  { label: 'Details' },
+  { label: 'Review' },
+];
 
 const EMPTY_FORM = {
   station_id: '',
@@ -26,6 +33,7 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
 
   // Station search
   const [nearbyStations, setNearbyStations] = useState<PoliceStation[]>([]);
@@ -40,8 +48,6 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
   ) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
-
-    // Clear station selection when location changes after a search
     if (name === 'incident_location' && searchedAddress && value !== searchedAddress) {
       setNearbyStations([]);
       setSelectedStation(null);
@@ -59,13 +65,12 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
     setNearbyStations([]);
     setSelectedStation(null);
     setForm(prev => ({ ...prev, station_id: '' }));
-
     try {
       const stations = await getNearbyStations(addr);
       setNearbyStations(stations);
       setSearchedAddress(addr);
       if (stations.length === 0) {
-        setStationError('No police stations found near this location. Try adding the city or district name.');
+        setStationError('No stations found. Try adding city or district name.');
       } else {
         setShowStationList(true);
       }
@@ -82,14 +87,38 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
     setShowStationList(false);
   };
 
+  const validateStep = (step: number): string => {
+    if (step === 0) {
+      if (!form.incident_type) return 'Please select an incident type';
+      if (!form.incident_date) return 'Please enter the incident date';
+    }
+    if (step === 1) {
+      if (!form.incident_location.trim()) return 'Please enter the incident location';
+      if (!form.station_id) return 'Please search for and select a police station';
+    }
+    if (step === 2) {
+      const rem = 50 - form.description.length;
+      if (rem > 0) return `Description needs ${rem} more character${rem !== 1 ? 's' : ''}`;
+      if (!form.complainant_address.trim()) return 'Please enter your residential address';
+    }
+    return '';
+  };
+
+  const goNext = () => {
+    const err = validateStep(currentStep);
+    if (err) { setError(err); return; }
+    setError('');
+    setCurrentStep(s => s + 1);
+  };
+
+  const goBack = () => {
+    setError('');
+    setCurrentStep(s => s - 1);
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-
-    if (!form.incident_type) { setError('Please select an incident type'); return; }
-    if (form.description.length < 50) { setError('Description must be at least 50 characters'); return; }
-    if (!form.station_id) { setError('Please search for and select a police station'); return; }
-
     setLoading(true);
     try {
       const fir = await fileFIR(token!, {
@@ -125,231 +154,326 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
         <p>Submit your complaint — it will be assigned to the nearest police station</p>
       </div>
 
-      {error && <div className="dash-error" style={{ marginBottom: '1rem' }}>⚠ {error}</div>}
+      {/* ── Step Timeline ── */}
+      <div className="fir-steps">
+        {STEPS.map((step, idx) => {
+          const isDone   = idx < currentStep;
+          const isActive = idx === currentStep;
+          return (
+            <Fragment key={idx}>
+              <div className="fir-step-item">
+                <div className={`fir-step-dot${isDone ? ' done' : isActive ? ' active' : ''}`}>
+                  {isDone ? '✓' : idx + 1}
+                </div>
+                <div className={`fir-step-label${isDone ? ' done' : isActive ? ' active' : ''}`}>
+                  {step.label}
+                </div>
+              </div>
+              {idx < STEPS.length - 1 && (
+                <div className={`fir-step-conn${isDone ? ' done' : ''}`} />
+              )}
+            </Fragment>
+          );
+        })}
+      </div>
+
+      {error && (
+        <div className="dash-error" style={{ marginBottom: '1rem' }}>⚠ {error}</div>
+      )}
 
       <div className="dash-card">
         <form className="file-fir-form" onSubmit={handleSubmit}>
 
-          {/* ── Section 1: Incident ── */}
-          <div>
-            <div className="form-section-title">1. Incident Information</div>
-
-            <div className="form-row-2">
-              <div className="form-group-dash">
-                <label>Incident Type *</label>
-                <select name="incident_type" value={form.incident_type} onChange={handleChange} required>
-                  <option value="">Select type…</option>
-                  {INCIDENT_TYPES.map(([val, label]) => (
-                    <option key={val} value={val}>{label}</option>
-                  ))}
-                </select>
+          {/* ══ Step 0 — Incident ══ */}
+          {currentStep === 0 && (
+            <div>
+              <div className="form-section-title">Incident Information</div>
+              <div className="form-row-2">
+                <div className="form-group-dash">
+                  <label>Incident Type *</label>
+                  <select name="incident_type" value={form.incident_type} onChange={handleChange}>
+                    <option value="">Select type…</option>
+                    {INCIDENT_TYPES.map(([val, label]) => (
+                      <option key={val} value={val}>{label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group-dash">
+                  <label>Incident Date *</label>
+                  <input
+                    type="date"
+                    name="incident_date"
+                    value={form.incident_date}
+                    onChange={handleChange}
+                    max={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
               </div>
-              <div className="form-group-dash">
-                <label>Incident Date *</label>
-                <input
-                  type="date"
-                  name="incident_date"
-                  value={form.incident_date}
-                  onChange={handleChange}
-                  max={new Date().toISOString().split('T')[0]}
-                  required
-                />
+              <div className="form-row-2" style={{ marginTop: '1rem' }}>
+                <div className="form-group-dash">
+                  <label>Incident Time (optional)</label>
+                  <input
+                    type="time"
+                    name="incident_time"
+                    value={form.incident_time}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div />
               </div>
             </div>
+          )}
 
-            <div className="form-row-2" style={{ marginTop: '1rem' }}>
+          {/* ══ Step 1 — Location & Station ══ */}
+          {currentStep === 1 && (
+            <div>
+              <div className="form-section-title">Location & Police Station</div>
               <div className="form-group-dash">
-                <label>Incident Time (optional)</label>
-                <input
-                  type="time"
-                  name="incident_time"
-                  value={form.incident_time}
-                  onChange={handleChange}
-                />
+                <label>Incident Location *</label>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+                  <input
+                    type="text"
+                    name="incident_location"
+                    value={form.incident_location}
+                    onChange={handleChange}
+                    placeholder="e.g. Near SBI ATM, Sector 21, Noida"
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={findNearbyStations}
+                    disabled={!canSearch}
+                    style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                  >
+                    {stationSearching ? 'Searching…' : locationChanged ? 'Search Again' : 'Find Stations'}
+                  </button>
+                </div>
+                {!searchedAddress && (
+                  <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.35rem' }}>
+                    Enter where the incident happened, then click "Find Stations".
+                  </div>
+                )}
+                {locationChanged && (
+                  <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: '0.35rem' }}>
+                    Location changed — click "Search Again" to update nearby stations.
+                  </div>
+                )}
               </div>
-              <div />
-            </div>
 
-            {/* Location + Find Stations */}
-            <div className="form-group-dash" style={{ marginTop: '1rem' }}>
-              <label>Incident Location *</label>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'stretch' }}>
+              {stationSearching && (
+                <div style={{ padding: '0.75rem 0', color: '#64748b', fontSize: '0.875rem' }}>
+                  Locating nearby police stations…
+                </div>
+              )}
+              {stationError && !stationSearching && (
+                <div className="dash-error" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                  {stationError}
+                </div>
+              )}
+
+              {/* Compact selected-station summary */}
+              {selectedStation && !showStationList && (
+                <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
+                  <label>Selected Police Station *</label>
+                  <div className="station-card selected" style={{ cursor: 'default' }}>
+                    <div style={{ flex: 1 }}>
+                      <div className="station-card-name">{selectedStation.name}</div>
+                      <div className="station-card-address">{selectedStation.address}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <span style={{
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: '#22c55e', color: '#fff',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '0.75rem',
+                      }}>✓</span>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                        onClick={() => setShowStationList(true)}
+                      >
+                        Change
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Station card list */}
+              {!stationSearching && nearbyStations.length > 0 && showStationList && (
+                <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
+                  <label>Select Police Station *</label>
+                  <div className="station-picker">
+                    {nearbyStations.map(s => {
+                      const isSelected = selectedStation?.id === s.id;
+                      return (
+                        <div
+                          key={s.id}
+                          className={`station-card${isSelected ? ' selected' : ''}`}
+                          onClick={() => selectStation(s)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={e => e.key === 'Enter' && selectStation(s)}
+                        >
+                          <div>
+                            <div className="station-card-name">{s.name}</div>
+                            <div className="station-card-address">{s.address}</div>
+                          </div>
+                          {isSelected && (
+                            <span style={{
+                              width: 22, height: 22, borderRadius: '50%',
+                              background: '#22c55e', color: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '0.75rem', flexShrink: 0,
+                            }}>✓</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ══ Step 2 — Details ══ */}
+          {currentStep === 2 && (
+            <div>
+              <div className="form-section-title">Description & Your Details</div>
+              <div className="form-group-dash">
+                <label>Description * (min 50 characters)</label>
+                <textarea
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  placeholder="Describe the incident in detail — what happened, when, who was involved, any evidence…"
+                  rows={5}
+                />
+                <div className={`char-count ${descLen < 50 ? 'warn' : 'ok'}`}>
+                  {descLen} / 50 min {descLen >= 50 ? '✓' : `(${50 - descLen} more needed)`}
+                </div>
+              </div>
+              <div className="form-group-dash" style={{ marginTop: '1rem' }}>
+                <label>Residential Address *</label>
                 <input
                   type="text"
-                  name="incident_location"
-                  value={form.incident_location}
+                  name="complainant_address"
+                  value={form.complainant_address}
                   onChange={handleChange}
-                  placeholder="e.g. Near SBI ATM, Sector 21, Noida"
-                  style={{ flex: 1 }}
-                  required
+                  placeholder="House No., Street, Area, City, PIN"
                 />
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={findNearbyStations}
-                  disabled={!canSearch}
-                  style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
-                >
-                  {stationSearching ? 'Searching…' : locationChanged ? 'Search Again' : 'Find Stations'}
+              </div>
+              <div className="form-group-dash" style={{ marginTop: '1rem' }}>
+                <label>Witness Information (optional)</label>
+                <textarea
+                  name="witness_info"
+                  value={form.witness_info}
+                  onChange={handleChange}
+                  placeholder="Names, contact details, or descriptions of any witnesses…"
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* ══ Step 3 — Review ══ */}
+          {currentStep === 3 && (
+            <div>
+              <div className="form-section-title">Review Your Complaint</div>
+              <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '1.25rem' }}>
+                Please review all details before submitting. Once filed, the FIR is sent to the selected police station.
+              </p>
+
+              <div className="fir-review-block">
+                <div className="fir-review-head">Incident</div>
+                <div className="fir-review-row">
+                  <span>Type</span>
+                  <span>{INCIDENT_LABELS[form.incident_type as IncidentType] || '—'}</span>
+                </div>
+                <div className="fir-review-row">
+                  <span>Date</span>
+                  <span>
+                    {form.incident_date
+                      ? new Date(form.incident_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                      : '—'}
+                  </span>
+                </div>
+                {form.incident_time && (
+                  <div className="fir-review-row">
+                    <span>Time</span><span>{form.incident_time}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="fir-review-block">
+                <div className="fir-review-head">Location & Station</div>
+                <div className="fir-review-row">
+                  <span>Location</span><span>{form.incident_location}</span>
+                </div>
+                <div className="fir-review-row">
+                  <span>Station</span><span>{selectedStation?.name || '—'}</span>
+                </div>
+                {selectedStation?.address && (
+                  <div className="fir-review-row">
+                    <span>Address</span><span>{selectedStation.address}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="fir-review-block">
+                <div className="fir-review-head">Description</div>
+                <div className="fir-review-desc">{form.description}</div>
+                {form.witness_info && (
+                  <>
+                    <div className="fir-review-head" style={{ marginTop: '0.75rem' }}>Witness Information</div>
+                    <div style={{ fontSize: '0.875rem', color: '#334155' }}>{form.witness_info}</div>
+                  </>
+                )}
+              </div>
+
+              <div className="fir-review-block">
+                <div className="fir-review-head">Complainant</div>
+                <div className="fir-review-row">
+                  <span>Name</span><span>{user?.full_name}</span>
+                </div>
+                <div className="fir-review-row">
+                  <span>Phone</span><span>{user?.phone}</span>
+                </div>
+                <div className="fir-review-row">
+                  <span>Address</span><span>{form.complainant_address}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Navigation ── */}
+          <div className="action-bar" style={{ marginTop: '1.75rem' }}>
+            {currentStep < 3 ? (
+              <>
+                <button type="button" className="btn-primary" onClick={goNext}>
+                  Next →
                 </button>
-              </div>
-              {!searchedAddress && (
-                <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.35rem' }}>
-                  Enter where the incident happened, then click "Find Stations" to select the nearest police station.
-                </div>
-              )}
-              {locationChanged && (
-                <div style={{ fontSize: '0.78rem', color: '#f59e0b', marginTop: '0.35rem' }}>
-                  Location changed — click "Search Again" to update nearby stations.
-                </div>
-              )}
-            </div>
-
-            {/* Station search results */}
-            {stationSearching && (
-              <div style={{ padding: '0.75rem 0', color: '#64748b', fontSize: '0.875rem' }}>
-                Locating nearby police stations…
-              </div>
+                {currentStep > 0 && (
+                  <button type="button" className="btn-secondary" onClick={goBack}>
+                    ← Back
+                  </button>
+                )}
+                <button type="button" className="btn-secondary" onClick={onCancel}>
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Filing FIR…' : 'Submit FIR'}
+                </button>
+                <button type="button" className="btn-secondary" onClick={goBack} disabled={loading}>
+                  ← Back
+                </button>
+              </>
             )}
-
-            {stationError && !stationSearching && (
-              <div className="dash-error" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                {stationError}
-              </div>
-            )}
-
-            {/* Selected station summary (collapsed state) */}
-            {selectedStation && !showStationList && (
-              <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
-                <label>Selected Police Station *</label>
-                <div className="station-card selected" style={{ cursor: 'default' }}>
-                  <div style={{ flex: 1 }}>
-                    <div className="station-card-name">{selectedStation.name}</div>
-                    <div className="station-card-address">{selectedStation.address}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                    <span style={{
-                      width: 22, height: 22, borderRadius: '50%',
-                      background: '#22c55e', color: '#fff',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '0.75rem',
-                    }}>✓</span>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
-                      onClick={() => setShowStationList(true)}
-                    >
-                      Change
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Station list (open while browsing) */}
-            {!stationSearching && nearbyStations.length > 0 && showStationList && (
-              <div className="form-group-dash" style={{ marginTop: '0.75rem' }}>
-                <label>Select Police Station *</label>
-                <div className="station-picker">
-                  {nearbyStations.map(s => {
-                    const isSelected = selectedStation?.id === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        className={`station-card${isSelected ? ' selected' : ''}`}
-                        onClick={() => selectStation(s)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={e => e.key === 'Enter' && selectStation(s)}
-                      >
-                        <div>
-                          <div className="station-card-name">{s.name}</div>
-                          <div className="station-card-address">{s.address}</div>
-                        </div>
-                        {isSelected && (
-                          <span style={{
-                            width: 22, height: 22, borderRadius: '50%',
-                            background: '#22c55e', color: '#fff',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '0.75rem', flexShrink: 0,
-                          }}>✓</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Description */}
-            <div className="form-group-dash" style={{ marginTop: '1rem' }}>
-              <label>Description * (min 50 characters)</label>
-              <textarea
-                name="description"
-                value={form.description}
-                onChange={handleChange}
-                placeholder="Describe the incident in detail — what happened, when, who was involved, any evidence…"
-                rows={5}
-                required
-              />
-              <div className={`char-count ${descLen < 50 ? 'warn' : 'ok'}`}>
-                {descLen} / 50 min {descLen >= 50 ? '✓' : `(${50 - descLen} more needed)`}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Section 2: Complainant ── */}
-          <div>
-            <div className="form-section-title">2. Complainant Details</div>
-            <div className="form-row-2">
-              <div className="form-group-dash">
-                <label>Full Name</label>
-                <input type="text" value={user?.full_name || ''} disabled />
-              </div>
-              <div className="form-group-dash">
-                <label>Phone</label>
-                <input type="text" value={user?.phone || ''} disabled />
-              </div>
-            </div>
-            <div className="form-group-dash" style={{ marginTop: '1rem' }}>
-              <label>Residential Address *</label>
-              <input
-                type="text"
-                name="complainant_address"
-                value={form.complainant_address}
-                onChange={handleChange}
-                placeholder="House No., Street, Area, City, PIN"
-                required
-              />
-            </div>
-          </div>
-
-          {/* ── Section 3: Witness ── */}
-          <div>
-            <div className="form-section-title">3. Witness Information (optional)</div>
-            <div className="form-group-dash">
-              <textarea
-                name="witness_info"
-                value={form.witness_info}
-                onChange={handleChange}
-                placeholder="Names, contact details, or descriptions of any witnesses…"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <div className="action-bar">
-            <button
-              type="submit"
-              className="btn-primary"
-              disabled={loading || descLen < 50 || !form.station_id}
-            >
-              {loading ? 'Filing FIR…' : 'Submit FIR'}
-            </button>
-            <button type="button" className="btn-secondary" onClick={onCancel}>
-              Cancel
-            </button>
           </div>
 
         </form>
