@@ -1,8 +1,8 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import select, func
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -58,6 +58,23 @@ class EscalationItem(BaseModel):
 class AuthorityActionRequest(BaseModel):
     directive: str = Field(min_length=10, description="Instruction or note for the officer")
     hand_back: bool = False
+
+
+class FIRWithStation(BaseModel):
+    id: str
+    fir_number: str
+    status: FIRStatus
+    incident_type: str
+    complainant_name: str
+    incident_location: str
+    incident_date: date
+    station_id: str
+    station_name: str
+    citizen_id: str
+    officer_id: Optional[str] = None
+    ipc_sections: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class StationHealth(BaseModel):
@@ -278,3 +295,56 @@ async def post_escalation_action(
     await session.commit()
     await session.refresh(fir)
     return fir
+
+
+@router.get("/district/cases", response_model=List[FIRWithStation])
+async def get_district_cases(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+    status: Optional[FIRStatus] = Query(default=None),
+    station_id: Optional[str] = Query(default=None),
+):
+    district = _district(current_user)
+
+    station_rows = (await session.exec(
+        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+    )).all()
+    station_map = {row[0]: row[1] for row in station_rows}
+
+    if not station_map:
+        return []
+
+    # Scope to requested station or all district stations
+    if station_id:
+        if station_id not in station_map:
+            raise HTTPException(404, "Station not found in your district")
+        ids = [station_id]
+    else:
+        ids = list(station_map.keys())
+
+    query = select(FIR).where(FIR.station_id.in_(ids))
+    if status:
+        query = query.where(FIR.status == status)
+    query = query.order_by(FIR.updated_at.desc())
+
+    firs = (await session.exec(query)).all()
+
+    return [
+        FIRWithStation(
+            id=f.id,
+            fir_number=f.fir_number,
+            status=f.status,
+            incident_type=f.incident_type,
+            complainant_name=f.complainant_name,
+            incident_location=f.incident_location,
+            incident_date=f.incident_date,
+            station_id=f.station_id,
+            station_name=station_map.get(f.station_id, "Unknown"),
+            citizen_id=f.citizen_id,
+            officer_id=f.officer_id,
+            ipc_sections=f.ipc_sections,
+            created_at=f.created_at,
+            updated_at=f.updated_at,
+        )
+        for f in firs
+    ]

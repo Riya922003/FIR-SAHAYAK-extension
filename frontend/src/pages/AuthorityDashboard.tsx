@@ -5,11 +5,12 @@ import DistrictStatsRow from '../components/authority/DistrictStats';
 import StationHealthList from '../components/authority/StationHealthList';
 import StationFIRList from '../components/authority/StationFIRList';
 import EscalationQueue from '../components/authority/EscalationQueue';
+import ActiveCases from '../components/authority/ActiveCases';
 import { getDistrictStats, getDistrictStations, type DistrictStats, type StationHealth } from '../api/authority';
 import '../styles/dashboard.css';
 import '../styles/authority.css';
 
-type View = 'dashboard' | 'station-detail' | 'escalations' | 'profile';
+type View = 'dashboard' | 'station-detail' | 'escalations' | 'active-cases' | 'profile';
 
 export default function AuthorityDashboard() {
   const { user, token, logout } = useAuth();
@@ -108,14 +109,12 @@ export default function AuthorityDashboard() {
           </button>
 
           <button
-            className="sidebar-item disabled"
-            title={collapsed ? 'Active Cases (coming soon)' : undefined}
+            className={`sidebar-item${view === 'active-cases' ? ' active authority-active' : ''}`}
+            onClick={() => setView('active-cases')}
+            title={collapsed ? 'Active Cases' : undefined}
           >
             <span className="item-icon">📁</span>
-            <span className="item-label">
-              Active Cases
-              <span className="soon-badge">Soon</span>
-            </span>
+            <span className="item-label">Active Cases</span>
           </button>
 
           <button
@@ -189,6 +188,9 @@ export default function AuthorityDashboard() {
 
         {/* ── Escalation Queue ── */}
         {view === 'escalations' && <EscalationQueue />}
+
+        {/* ── Active Cases ── */}
+        {view === 'active-cases' && <ActiveCases />}
 
         {/* ── Station FIR drill-in ── */}
         {view === 'station-detail' && selectedStation && (

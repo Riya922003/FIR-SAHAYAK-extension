@@ -1,4 +1,4 @@
-import type { FIR, IncidentType } from './fir';
+import type { FIR, FIRStatus, IncidentType } from './fir';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -61,6 +61,37 @@ export interface EscalationItem {
   escalated_at: string;
   reason: string;
   days_pending: number;
+}
+
+export interface FIRWithStation {
+  id: string;
+  fir_number: string;
+  status: FIRStatus;
+  incident_type: IncidentType;
+  complainant_name: string;
+  incident_location: string;
+  incident_date: string;
+  station_id: string;
+  station_name: string;
+  citizen_id: string;
+  officer_id: string | null;
+  ipc_sections: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getDistrictCases(
+  token: string,
+  status?: FIRStatus | 'all',
+  stationId?: string,
+): Promise<FIRWithStation[]> {
+  const params = new URLSearchParams();
+  if (status && status !== 'all') params.set('status', status);
+  if (stationId) params.set('station_id', stationId);
+  const qs = params.toString();
+  const res = await fetch(`${API}/api/v1/authority/district/cases${qs ? `?${qs}` : ''}`, { headers: authH(token) });
+  if (!res.ok) await handleError(res);
+  return res.json();
 }
 
 export async function getDistrictEscalations(token: string): Promise<EscalationItem[]> {
