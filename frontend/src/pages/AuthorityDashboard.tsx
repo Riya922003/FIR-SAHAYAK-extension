@@ -1,15 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import DistrictPicker from '../components/authority/DistrictPicker';
+import DistrictStatsRow from '../components/authority/DistrictStats';
+import StationHealthList from '../components/authority/StationHealthList';
+import StationFIRList from '../components/authority/StationFIRList';
+import { getDistrictStats, getDistrictStations, type DistrictStats, type StationHealth } from '../api/authority';
 import '../styles/dashboard.css';
 import '../styles/authority.css';
 
-type View = 'dashboard' | 'profile';
+type View = 'dashboard' | 'station-detail' | 'profile';
 
 export default function AuthorityDashboard() {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
   const [view, setView] = useState<View>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
+
+  // District dashboard data
+  const [stats, setStats] = useState<DistrictStats | null>(null);
+  const [stations, setStations] = useState<StationHealth[]>([]);
+  const [loadingDash, setLoadingDash] = useState(false);
+  const [dashError, setDashError] = useState('');
+
+  // Station drill-in
+  const [selectedStation, setSelectedStation] = useState<StationHealth | null>(null);
+
+  const loadDashboard = useCallback(async () => {
+    if (!token) return;
+    setLoadingDash(true);
+    setDashError('');
+    try {
+      const [s, st] = await Promise.all([getDistrictStats(token), getDistrictStations(token)]);
+      setStats(s);
+      setStations(st);
+    } catch (e) {
+      setDashError(e instanceof Error ? e.message : 'Failed to load district data');
+    } finally {
+      setLoadingDash(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (user?.district && view === 'dashboard') {
+      loadDashboard();
+    }
+  }, [user?.district, view, loadDashboard]);
 
   // First login — no district set yet
   if (!user?.district) return <DistrictPicker />;
@@ -20,6 +54,16 @@ export default function AuthorityDashboard() {
     .join('')
     .toUpperCase()
     .slice(0, 2);
+
+  const handleDrillIn = (station: StationHealth) => {
+    setSelectedStation(station);
+    setView('station-detail');
+  };
+
+  const handleBack = () => {
+    setSelectedStation(null);
+    setView('dashboard');
+  };
 
   return (
     <div className="dashboard-layout">
@@ -45,8 +89,8 @@ export default function AuthorityDashboard() {
 
         <nav className="sidebar-nav">
           <button
-            className={`sidebar-item${view === 'dashboard' ? ' active authority-active' : ''}`}
-            onClick={() => setView('dashboard')}
+            className={`sidebar-item${view === 'dashboard' || view === 'station-detail' ? ' active authority-active' : ''}`}
+            onClick={() => { setView('dashboard'); setSelectedStation(null); }}
             title={collapsed ? 'Dashboard' : undefined}
           >
             <span className="item-icon">📊</span>
@@ -111,28 +155,45 @@ export default function AuthorityDashboard() {
       {/* ── Main content ── */}
       <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
 
-        {view === 'dashboard' && (
+        {/* ── District Dashboard ── */}
+        {(view === 'dashboard') && (
           <div>
             <div className="dash-header">
-              <h1>District Overview</h1>
-              <p>Oversight portal for {user.district} district</p>
+              <div>
+                <h1>District Overview</h1>
+                <p>Oversight portal for <strong>{user.district}</strong> district</p>
+              </div>
+              <button
+                className="btn-refresh"
+                onClick={loadDashboard}
+                disabled={loadingDash}
+                title="Refresh"
+              >
+                {loadingDash ? '…' : '↻'} Refresh
+              </button>
             </div>
 
-            <div className="authority-placeholder-card">
-              <div className="authority-placeholder-icon">🏛️</div>
-              <h2>Phase 2 — Coming Next</h2>
-              <p>
-                The district dashboard with station health, escalation counts,
-                active FIR analytics, and overdue alerts is being built.
-              </p>
-              <div className="authority-district-badge">
-                <span className="authority-district-label">Your District</span>
-                <span className="authority-district-value">{user.district}</span>
-              </div>
-            </div>
+            {dashError && <div className="dash-error">⚠ {dashError}</div>}
+
+            {loadingDash && !stats ? (
+              <div className="dash-loading">Loading district data…</div>
+            ) : stats ? (
+              <>
+                <DistrictStatsRow stats={stats} district={user.district} />
+                <div style={{ marginTop: '1.5rem' }}>
+                  <StationHealthList stations={stations} onDrillIn={handleDrillIn} />
+                </div>
+              </>
+            ) : null}
           </div>
         )}
 
+        {/* ── Station FIR drill-in ── */}
+        {view === 'station-detail' && selectedStation && (
+          <StationFIRList station={selectedStation} onBack={handleBack} />
+        )}
+
+        {/* ── Profile ── */}
         {view === 'profile' && (
           <div>
             <div className="dash-header">

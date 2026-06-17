@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.routers import auth, fir, ai, admin
+from app.routers import auth, fir, ai, admin, authority
 
 
 @asynccontextmanager
@@ -40,6 +40,7 @@ app.include_router(auth.router, prefix=API_PREFIX)
 app.include_router(fir.router, prefix=API_PREFIX)
 app.include_router(ai.router, prefix=API_PREFIX)
 app.include_router(admin.router, prefix=API_PREFIX)
+app.include_router(authority.router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["Health"])
