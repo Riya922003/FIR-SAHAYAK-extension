@@ -110,6 +110,17 @@ export async function cancelFIR(token: string, id: string): Promise<FIR> {
   return data;
 }
 
+export async function escalateFIR(token: string, id: string, reason: string): Promise<FIR> {
+  const res = await fetch(`${API_URL}/api/v1/fir/${id}/escalate`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify({ reason }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to escalate FIR');
+  return data;
+}
+
 export async function getStations(token: string): Promise<PoliceStation[]> {
   const res = await fetch(`${API_URL}/api/v1/admin/stations`, { headers: authH(token) });
   if (!res.ok) return [];

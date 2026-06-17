@@ -1,4 +1,4 @@
-import type { FIR } from './fir';
+import type { FIR, IncidentType } from './fir';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -46,6 +46,40 @@ export async function getDistrictStats(token: string): Promise<DistrictStats> {
 
 export async function getDistrictStations(token: string): Promise<StationHealth[]> {
   const res = await fetch(`${API}/api/v1/authority/district/stations`, { headers: authH(token) });
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
+export interface EscalationItem {
+  fir_id: string;
+  fir_number: string;
+  complainant_name: string;
+  incident_type: IncidentType;
+  incident_location: string;
+  station_id: string;
+  station_name: string;
+  escalated_at: string;
+  reason: string;
+  days_pending: number;
+}
+
+export async function getDistrictEscalations(token: string): Promise<EscalationItem[]> {
+  const res = await fetch(`${API}/api/v1/authority/district/escalations`, { headers: authH(token) });
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
+export async function postEscalationAction(
+  token: string,
+  firId: string,
+  directive: string,
+  handBack: boolean,
+): Promise<FIR> {
+  const res = await fetch(`${API}/api/v1/authority/district/escalations/${firId}/action`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify({ directive, hand_back: handBack }),
+  });
   if (!res.ok) await handleError(res);
   return res.json();
 }

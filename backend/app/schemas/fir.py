@@ -38,7 +38,6 @@ class FIRStatusUpdateRequest(BaseModel):
 
 class EscalationRequest(BaseModel):
     reason: str = Field(min_length=30, description="Reason must be at least 30 characters")
-    escalated_to: str   # higher authority user id
 
 
 class ReapplyRequest(BaseModel):
@@ -95,7 +94,7 @@ class EscalationResponse(BaseModel):
     id: str
     fir_id: str
     escalated_by: str
-    escalated_to: str
+    escalated_to: Optional[str] = None
     reason: str
     status: EscalationStatus
     resolution_notes: Optional[str]

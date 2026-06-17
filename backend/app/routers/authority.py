@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import select, func
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_session
-from app.core.security import require_roles
+from app.core.security import require_roles, get_current_user
 from app.models.enums import FIRStatus, UserRole
-from app.models.fir import FIR, PoliceStation
+from app.models.fir import FIR, FIRStatusHistory, PoliceStation
 from app.models.user import User
 from app.schemas.fir import FIRResponse
 
@@ -40,6 +40,24 @@ class DistrictStats(BaseModel):
     total_active_firs: int
     pending_escalations: int
     resolved_this_month: int
+
+
+class EscalationItem(BaseModel):
+    fir_id: str
+    fir_number: str
+    complainant_name: str
+    incident_type: str
+    incident_location: str
+    station_id: str
+    station_name: str
+    escalated_at: datetime
+    reason: str
+    days_pending: int
+
+
+class AuthorityActionRequest(BaseModel):
+    directive: str = Field(min_length=10, description="Instruction or note for the officer")
+    hand_back: bool = False
 
 
 class StationHealth(BaseModel):
@@ -160,3 +178,103 @@ async def get_station_firs(
         .order_by(FIR.updated_at.desc())
     )).all()
     return firs
+
+
+@router.get("/district/escalations", response_model=List[EscalationItem])
+async def get_district_escalations(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+):
+    district = _district(current_user)
+
+    station_ids_rows = (await session.exec(
+        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+    )).all()
+    station_map = {row[0]: row[1] for row in station_ids_rows}
+
+    if not station_map:
+        return []
+
+    escalated_firs = (await session.exec(
+        select(FIR)
+        .where(FIR.station_id.in_(list(station_map.keys())))
+        .where(FIR.status == FIRStatus.ESCALATED)
+        .order_by(FIR.updated_at.desc())
+    )).all()
+
+    result = []
+    now = datetime.utcnow()
+
+    for fir in escalated_firs:
+        # Get the most recent status history entry for ESCALATED status to extract reason + time
+        history = (await session.exec(
+            select(FIRStatusHistory)
+            .where(FIRStatusHistory.fir_id == fir.id)
+            .where(FIRStatusHistory.new_status == FIRStatus.ESCALATED)
+            .order_by(FIRStatusHistory.changed_at.desc())
+        )).first()
+
+        escalated_at = history.changed_at if history else fir.updated_at
+        reason = history.notes or "No reason provided"
+        if reason.startswith("Escalated by citizen: "):
+            reason = reason[len("Escalated by citizen: "):]
+
+        days = (now - escalated_at).days
+
+        result.append(EscalationItem(
+            fir_id=fir.id,
+            fir_number=fir.fir_number,
+            complainant_name=fir.complainant_name,
+            incident_type=fir.incident_type,
+            incident_location=fir.incident_location,
+            station_id=fir.station_id,
+            station_name=station_map.get(fir.station_id, "Unknown"),
+            escalated_at=escalated_at,
+            reason=reason,
+            days_pending=days,
+        ))
+
+    return result
+
+
+@router.post("/district/escalations/{fir_id}/action", response_model=FIRResponse)
+async def post_escalation_action(
+    fir_id: str,
+    payload: AuthorityActionRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
+):
+    district = _district(current_user)
+    fir = await session.get(FIR, fir_id)
+    if not fir:
+        raise HTTPException(404, "FIR not found")
+
+    station = await session.get(PoliceStation, fir.station_id)
+    if not station or station.district.lower() != district.lower():
+        raise HTTPException(404, "FIR not in your district")
+
+    if fir.status != FIRStatus.ESCALATED:
+        raise HTTPException(400, f"FIR is not in escalated state (current: {fir.status})")
+
+    old_status = fir.status
+    new_status = FIRStatus.UNDER_INVESTIGATION if payload.hand_back else FIRStatus.ESCALATED
+    note = f"[Authority Directive] {payload.directive}"
+    if payload.hand_back:
+        note += " — Handed back to station for investigation."
+
+    if payload.hand_back:
+        fir.status = new_status
+        fir.updated_at = datetime.utcnow()
+        session.add(fir)
+
+    history = FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=old_status,
+        new_status=new_status,
+        changed_by=current_user.id,
+        notes=note,
+    )
+    session.add(history)
+    await session.commit()
+    await session.refresh(fir)
+    return fir

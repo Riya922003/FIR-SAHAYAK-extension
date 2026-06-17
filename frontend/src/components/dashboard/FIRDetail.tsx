@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getFIRDetail, cancelFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import { getFIRDetail, cancelFIR, escalateFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   firId: string;
@@ -21,6 +21,10 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [showEscalate, setShowEscalate] = useState(false);
+  const [escalateReason, setEscalateReason] = useState('');
+  const [escalating, setEscalating] = useState(false);
+  const [escalateError, setEscalateError] = useState('');
 
   useEffect(() => {
     if (!token) return;
@@ -46,12 +50,32 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
     }
   };
 
+  const handleEscalate = async () => {
+    if (!token || !fir) return;
+    if (escalateReason.trim().length < 30) {
+      setEscalateError('Please provide at least 30 characters explaining why you are escalating.');
+      return;
+    }
+    setEscalating(true);
+    setEscalateError('');
+    try {
+      await escalateFIR(token, fir.id, escalateReason.trim());
+      onRefresh();
+      onBack();
+    } catch (e: unknown) {
+      setEscalateError(e instanceof Error ? e.message : 'Escalation failed');
+    } finally {
+      setEscalating(false);
+    }
+  };
+
   if (loading) return <div className="dash-loading">Loading FIR details…</div>;
   if (error) return <div className="dash-error">⚠ {error}</div>;
   if (!fir) return null;
 
   const isTerminal = TERMINAL.includes(fir.status);
   const canCancel = ['submitted', 'draft', 'acknowledged'].includes(fir.status);
+  const canEscalate = ['acknowledged', 'under_investigation'].includes(fir.status);
 
   // Build timeline steps
   const steps = isTerminal
@@ -166,33 +190,92 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
       </div>
 
       {/* Actions */}
-      {(canCancel) && (
+      {(canCancel || canEscalate) && (
         <div className="dash-card">
           <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Actions
           </h2>
-          <div className="action-bar">
-            {canCancel && !cancelConfirm && (
-              <button className="btn-danger" onClick={() => setCancelConfirm(true)}>
-                Close / Withdraw FIR
-              </button>
-            )}
-            {cancelConfirm && (
-              <>
-                <span style={{ fontSize: '0.875rem', color: '#dc2626', alignSelf: 'center' }}>
-                  {fir.status === 'acknowledged'
-                    ? 'This FIR has been acknowledged by an officer. Closing it will mark it as rejected on their end.'
-                    : 'Are you sure you want to close this FIR? This cannot be undone.'}
-                </span>
-                <button className="btn-danger" onClick={handleCancel} disabled={cancelling}>
-                  {cancelling ? 'Closing…' : 'Yes, Close FIR'}
+
+          {/* Close / Withdraw */}
+          {canCancel && (
+            <div className="action-bar" style={{ marginBottom: canEscalate ? '1rem' : 0 }}>
+              {!cancelConfirm && (
+                <button className="btn-danger" onClick={() => setCancelConfirm(true)}>
+                  Close / Withdraw FIR
                 </button>
-                <button className="btn-secondary" onClick={() => setCancelConfirm(false)}>
-                  No, Keep It
+              )}
+              {cancelConfirm && (
+                <>
+                  <span style={{ fontSize: '0.875rem', color: '#dc2626', alignSelf: 'center' }}>
+                    {fir.status === 'acknowledged'
+                      ? 'This FIR has been acknowledged by an officer. Closing it will mark it as rejected on their end.'
+                      : 'Are you sure you want to close this FIR? This cannot be undone.'}
+                  </span>
+                  <button className="btn-danger" onClick={handleCancel} disabled={cancelling}>
+                    {cancelling ? 'Closing…' : 'Yes, Close FIR'}
+                  </button>
+                  <button className="btn-secondary" onClick={() => setCancelConfirm(false)}>
+                    No, Keep It
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Escalate to Higher Authority */}
+          {canEscalate && (
+            <div>
+              {!showEscalate ? (
+                <button
+                  className="btn-secondary"
+                  style={{ borderColor: '#f97316', color: '#f97316' }}
+                  onClick={() => { setShowEscalate(true); setEscalateError(''); }}
+                >
+                  ⚠ Escalate to Higher Authority
                 </button>
-              </>
-            )}
-          </div>
+              ) : (
+                <div style={{ border: '1px solid #fed7aa', borderRadius: 10, padding: '1rem', background: '#fff7ed' }}>
+                  <p style={{ fontSize: '0.875rem', color: '#9a3412', margin: '0 0 0.75rem', fontWeight: 600 }}>
+                    Escalate to District Authority
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.75rem' }}>
+                    Use this if the officer has not taken action or you feel your case needs oversight. The district authority will be notified.
+                  </p>
+                  <textarea
+                    value={escalateReason}
+                    onChange={e => setEscalateReason(e.target.value)}
+                    placeholder="Explain why you are escalating this FIR (minimum 30 characters)…"
+                    rows={3}
+                    style={{
+                      width: '100%', boxSizing: 'border-box', resize: 'vertical',
+                      border: '1px solid #e2e8f0', borderRadius: 8,
+                      padding: '0.6rem 0.75rem', fontSize: '0.875rem', fontFamily: 'inherit',
+                      marginBottom: '0.5rem',
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: escalateReason.length < 30 ? '#94a3b8' : '#22c55e', marginBottom: '0.75rem' }}>
+                    {escalateReason.length}/30 min characters
+                  </div>
+                  {escalateError && (
+                    <div style={{ fontSize: '0.8rem', color: '#dc2626', marginBottom: '0.75rem' }}>⚠ {escalateError}</div>
+                  )}
+                  <div className="action-bar">
+                    <button
+                      className="btn-primary"
+                      style={{ background: '#f97316', borderColor: '#f97316' }}
+                      onClick={handleEscalate}
+                      disabled={escalating || escalateReason.trim().length < 30}
+                    >
+                      {escalating ? 'Escalating…' : 'Submit Escalation'}
+                    </button>
+                    <button className="btn-secondary" onClick={() => { setShowEscalate(false); setEscalateError(''); }}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </>

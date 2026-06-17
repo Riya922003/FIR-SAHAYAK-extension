@@ -7,7 +7,7 @@ from datetime import datetime
 from app.core.database import get_session
 from app.core.security import get_current_user, require_roles
 from app.models.user import User
-from app.models.fir import FIR, FIRStatusHistory, Escalation
+from app.models.fir import FIR, FIRStatusHistory
 from app.models.enums import FIRStatus, UserRole
 from app.schemas.fir import (
     FIRCreateRequest,
@@ -16,7 +16,6 @@ from app.schemas.fir import (
     FIRResponse,
     FIRDetailResponse,
     EscalationRequest,
-    EscalationResponse,
     ReapplyRequest,
     StatusHistoryItem,
 )
@@ -221,7 +220,7 @@ async def reapply_fir(
     return new_fir
 
 
-@router.post("/{fir_id}/escalate", response_model=EscalationResponse, status_code=201)
+@router.post("/{fir_id}/escalate", response_model=FIRResponse)
 async def escalate_fir(
     fir_id: str,
     payload: EscalationRequest,
@@ -232,25 +231,24 @@ async def escalate_fir(
     if not fir or fir.citizen_id != current_user.id:
         raise HTTPException(status_code=404, detail="FIR not found")
 
-    if fir.status in [FIRStatus.RESOLVED, FIRStatus.CLOSED]:
-        raise HTTPException(status_code=400, detail="Cannot escalate a resolved or closed FIR")
-
-    escalation = Escalation(
-        fir_id=fir.id,
-        escalated_by=current_user.id,
-        escalated_to=payload.escalated_to,
-        reason=payload.reason,
-    )
-    session.add(escalation)
+    eligible = [FIRStatus.ACKNOWLEDGED, FIRStatus.UNDER_INVESTIGATION]
+    if fir.status not in eligible:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Can only escalate an acknowledged or under-investigation FIR (current: {fir.status})",
+        )
 
     old_status = fir.status
     fir.status = FIRStatus.ESCALATED
     fir.updated_at = datetime.utcnow()
     session.add(fir)
-    await log_status_change(session, fir.id, old_status, FIRStatus.ESCALATED, current_user.id, payload.reason)
+    await log_status_change(
+        session, fir.id, old_status, FIRStatus.ESCALATED, current_user.id,
+        f"Escalated by citizen: {payload.reason}",
+    )
     await session.commit()
-    await session.refresh(escalation)
-    return escalation
+    await session.refresh(fir)
+    return fir
 
 
 # ── Officer routes ────────────────────────────────────────────────────────────

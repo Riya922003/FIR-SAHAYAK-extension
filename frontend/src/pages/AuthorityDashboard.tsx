@@ -4,11 +4,12 @@ import DistrictPicker from '../components/authority/DistrictPicker';
 import DistrictStatsRow from '../components/authority/DistrictStats';
 import StationHealthList from '../components/authority/StationHealthList';
 import StationFIRList from '../components/authority/StationFIRList';
+import EscalationQueue from '../components/authority/EscalationQueue';
 import { getDistrictStats, getDistrictStations, type DistrictStats, type StationHealth } from '../api/authority';
 import '../styles/dashboard.css';
 import '../styles/authority.css';
 
-type View = 'dashboard' | 'station-detail' | 'profile';
+type View = 'dashboard' | 'station-detail' | 'escalations' | 'profile';
 
 export default function AuthorityDashboard() {
   const { user, token, logout } = useAuth();
@@ -98,14 +99,12 @@ export default function AuthorityDashboard() {
           </button>
 
           <button
-            className="sidebar-item disabled"
-            title={collapsed ? 'Escalations (coming soon)' : undefined}
+            className={`sidebar-item${view === 'escalations' ? ' active authority-active' : ''}`}
+            onClick={() => setView('escalations')}
+            title={collapsed ? 'Escalations' : undefined}
           >
             <span className="item-icon">🚨</span>
-            <span className="item-label">
-              Escalations
-              <span className="soon-badge">Soon</span>
-            </span>
+            <span className="item-label">Escalations</span>
           </button>
 
           <button
@@ -187,6 +186,9 @@ export default function AuthorityDashboard() {
             ) : null}
           </div>
         )}
+
+        {/* ── Escalation Queue ── */}
+        {view === 'escalations' && <EscalationQueue />}
 
         {/* ── Station FIR drill-in ── */}
         {view === 'station-detail' && selectedStation && (
