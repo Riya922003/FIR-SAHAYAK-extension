@@ -1,14 +1,14 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export type FIRStatus =
-  | 'DRAFT' | 'SUBMITTED' | 'ACKNOWLEDGED'
-  | 'UNDER_INVESTIGATION' | 'RESOLVED' | 'REJECTED'
-  | 'CLOSED' | 'ESCALATED';
+  | 'draft' | 'submitted' | 'acknowledged'
+  | 'under_investigation' | 'resolved' | 'rejected'
+  | 'closed' | 'escalated';
 
 export type IncidentType =
-  | 'THEFT' | 'ASSAULT' | 'MISSING_PERSON' | 'SEXUAL_ASSAULT'
-  | 'HIT_AND_RUN' | 'FRAUD' | 'CYBER_CRIME' | 'PROPERTY_DAMAGE'
-  | 'DOMESTIC_VIOLENCE' | 'OTHER';
+  | 'theft' | 'assault' | 'missing_person' | 'sexual_assault'
+  | 'hit_and_run' | 'fraud' | 'cyber_crime' | 'property_damage'
+  | 'domestic_violence' | 'other';
 
 export interface FIR {
   id: string;
@@ -127,36 +127,36 @@ export async function getNearbyStations(address: string): Promise<PoliceStation[
 // ── Display helpers ───────────────────────────────────────────────────────────
 
 export const STATUS_LABELS: Record<FIRStatus, string> = {
-  DRAFT: 'Draft',
-  SUBMITTED: 'Submitted',
-  ACKNOWLEDGED: 'Acknowledged',
-  UNDER_INVESTIGATION: 'Under Investigation',
-  RESOLVED: 'Resolved',
-  REJECTED: 'Rejected',
-  CLOSED: 'Closed',
-  ESCALATED: 'Escalated',
+  draft: 'Draft',
+  submitted: 'Submitted',
+  acknowledged: 'Acknowledged',
+  under_investigation: 'Under Investigation',
+  resolved: 'Resolved',
+  rejected: 'Rejected',
+  closed: 'Closed',
+  escalated: 'Escalated',
 };
 
 export const STATUS_COLORS: Record<FIRStatus, string> = {
-  DRAFT: '#9e9e9e',
-  SUBMITTED: '#f59e0b',
-  ACKNOWLEDGED: '#3b82f6',
-  UNDER_INVESTIGATION: '#1d4ed8',
-  RESOLVED: '#22c55e',
-  REJECTED: '#ef4444',
-  CLOSED: '#64748b',
-  ESCALATED: '#f97316',
+  draft: '#9e9e9e',
+  submitted: '#f59e0b',
+  acknowledged: '#3b82f6',
+  under_investigation: '#1d4ed8',
+  resolved: '#22c55e',
+  rejected: '#ef4444',
+  closed: '#64748b',
+  escalated: '#f97316',
 };
 
 export const INCIDENT_LABELS: Record<IncidentType, string> = {
-  THEFT: 'Theft',
-  ASSAULT: 'Assault',
-  MISSING_PERSON: 'Missing Person',
-  SEXUAL_ASSAULT: 'Sexual Assault',
-  HIT_AND_RUN: 'Hit & Run',
-  FRAUD: 'Fraud',
-  CYBER_CRIME: 'Cyber Crime',
-  PROPERTY_DAMAGE: 'Property Damage',
-  DOMESTIC_VIOLENCE: 'Domestic Violence',
-  OTHER: 'Other',
+  theft: 'Theft',
+  assault: 'Assault',
+  missing_person: 'Missing Person',
+  sexual_assault: 'Sexual Assault',
+  hit_and_run: 'Hit & Run',
+  fraud: 'Fraud',
+  cyber_crime: 'Cyber Crime',
+  property_damage: 'Property Damage',
+  domestic_violence: 'Domestic Violence',
+  other: 'Other',
 };

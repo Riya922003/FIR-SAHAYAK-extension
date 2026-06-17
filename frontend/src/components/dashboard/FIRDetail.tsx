@@ -9,10 +9,10 @@ interface Props {
 }
 
 const TIMELINE_STEPS: FIRStatus[] = [
-  'SUBMITTED', 'ACKNOWLEDGED', 'UNDER_INVESTIGATION', 'RESOLVED',
+  'submitted', 'acknowledged', 'under_investigation', 'resolved',
 ];
 
-const TERMINAL: FIRStatus[] = ['REJECTED', 'CLOSED', 'ESCALATED'];
+const TERMINAL: FIRStatus[] = ['rejected', 'closed', 'escalated'];
 
 export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
   const { token } = useAuth();
@@ -51,7 +51,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
   if (!fir) return null;
 
   const isTerminal = TERMINAL.includes(fir.status);
-  const canCancel = ['SUBMITTED', 'DRAFT'].includes(fir.status);
+  const canCancel = ['submitted', 'draft'].includes(fir.status);
 
   // Build timeline steps
   const steps = isTerminal
@@ -126,13 +126,13 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
         <div className="status-timeline">
           {steps.map((step, idx) => {
             const historyEntry = fir.status_history.find(h => h.new_status === step);
-            const isDone = idx < currentIdx || (fir.status === step && ['RESOLVED', 'CLOSED', 'ESCALATED'].includes(step));
+            const isDone = idx < currentIdx || (fir.status === step && ['resolved', 'closed', 'escalated'].includes(step));
             const isCurrent = fir.status === step;
             const isPending = idx > currentIdx;
 
             let dotClass = 'pending';
             if (isDone) dotClass = 'done';
-            else if (isCurrent && TERMINAL.includes(step) && step !== 'RESOLVED') dotClass = step === 'REJECTED' ? 'error' : 'current';
+            else if (isCurrent && TERMINAL.includes(step) && step !== 'resolved') dotClass = step === 'rejected' ? 'error' : 'current';
             else if (isCurrent) dotClass = 'current';
 
             return (

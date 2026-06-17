@@ -10,13 +10,13 @@ interface Props {
 
 const FILTERS: { label: string; value: FIRStatus | 'ALL' }[] = [
   { label: 'All', value: 'ALL' },
-  { label: 'Submitted', value: 'SUBMITTED' },
-  { label: 'Acknowledged', value: 'ACKNOWLEDGED' },
-  { label: 'Under Investigation', value: 'UNDER_INVESTIGATION' },
-  { label: 'Resolved', value: 'RESOLVED' },
-  { label: 'Rejected', value: 'REJECTED' },
-  { label: 'Closed', value: 'CLOSED' },
-  { label: 'Escalated', value: 'ESCALATED' },
+  { label: 'Submitted', value: 'submitted' },
+  { label: 'Acknowledged', value: 'acknowledged' },
+  { label: 'Under Investigation', value: 'under_investigation' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Closed', value: 'closed' },
+  { label: 'Escalated', value: 'escalated' },
 ];
 
 export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {

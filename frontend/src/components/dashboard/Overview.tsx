@@ -8,20 +8,20 @@ interface Props {
   onFileFIR: () => void;
 }
 
-const ACTIVE: FIRStatus[] = ['SUBMITTED', 'ACKNOWLEDGED', 'UNDER_INVESTIGATION'];
-const TERMINAL: FIRStatus[] = ['REJECTED', 'CLOSED', 'ESCALATED'];
+const ACTIVE: FIRStatus[] = ['submitted', 'acknowledged', 'under_investigation'];
+const TERMINAL: FIRStatus[] = ['rejected', 'closed', 'escalated'];
 
 const BASE_STEPS: { status: FIRStatus; label: string }[] = [
-  { status: 'SUBMITTED',          label: 'Filed' },
-  { status: 'ACKNOWLEDGED',       label: 'Acknowledged' },
-  { status: 'UNDER_INVESTIGATION',label: 'Investigating' },
-  { status: 'RESOLVED',           label: 'Resolved' },
+  { status: 'submitted',           label: 'Filed' },
+  { status: 'acknowledged',        label: 'Acknowledged' },
+  { status: 'under_investigation', label: 'Investigating' },
+  { status: 'resolved',            label: 'Resolved' },
 ];
 
 const TERMINAL_LABELS: Partial<Record<FIRStatus, string>> = {
-  REJECTED: 'Rejected',
-  CLOSED:   'Closed',
-  ESCALATED:'Escalated',
+  rejected: 'Rejected',
+  closed:   'Closed',
+  escalated:'Escalated',
 };
 
 function timeAgo(iso: string): string {
@@ -127,7 +127,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
           {steps.map((step, idx) => {
             const isDone    = idx < currentIdx;
             const isCurrent = idx === currentIdx;
-            const isError   = isTerminal && isCurrent && step.status !== 'RESOLVED';
+            const isError   = isTerminal && isCurrent && step.status !== 'resolved';
             const isPending = idx > currentIdx;
             return (
               <Fragment key={step.status}>
