@@ -22,6 +22,18 @@ export interface User {
   phone: string;
   role: string;
   is_active: boolean;
+  station_id: string | null;
+}
+
+export async function setMyStation(token: string, station_id: string): Promise<User> {
+  const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/auth/me/station`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ station_id }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to set station');
+  return data;
 }
 
 export interface TokenResponse {

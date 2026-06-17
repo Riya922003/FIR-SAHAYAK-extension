@@ -4,6 +4,7 @@ import UnassignedQueue from '../components/officer/UnassignedQueue';
 import OfficerMyCases from '../components/officer/OfficerMyCases';
 import OfficerFIRDetail from '../components/officer/OfficerFIRDetail';
 import AllCases from '../components/officer/AllCases';
+import StationPicker from '../components/officer/StationPicker';
 import '../styles/officer.css';
 
 type View = 'queue' | 'my-cases' | 'detail' | 'all-cases';
@@ -16,6 +17,9 @@ export default function OfficerDashboard() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const isAdmin = user?.role === 'station_admin' || user?.role === 'higher_authority';
+
+  // First login — no station assigned yet
+  if (!user?.station_id) return <StationPicker />;
 
   const goToDetail = (id: string, from: View = view) => {
     setSelectedFirId(id);

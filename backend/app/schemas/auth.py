@@ -3,6 +3,10 @@ from typing import Optional
 from app.models.enums import UserRole
 
 
+class StationSetRequest(BaseModel):
+    station_id: str
+
+
 # ── Request schemas ───────────────────────────────────────────────────────────
 
 class RegisterRequest(BaseModel):
@@ -42,6 +46,7 @@ class UserResponse(BaseModel):
     phone: str
     role: UserRole
     is_active: bool
+    station_id: Optional[str] = None
 
     class Config:
         from_attributes = True

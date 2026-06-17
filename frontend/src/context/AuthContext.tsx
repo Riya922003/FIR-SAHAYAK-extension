@@ -5,6 +5,7 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (accessToken: string, refreshToken: string, userData: User) => void;
+  updateUser: (updated: Partial<User>) => void;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -33,6 +34,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('fir_user', JSON.stringify(userData));
   };
 
+  const updateUser = (updated: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updated };
+      localStorage.setItem('fir_user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   const logout = () => {
     setToken(null);
     setUser(null);
@@ -42,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout, isAuthenticated: !!token }}>
+    <AuthContext.Provider value={{ user, token, login, updateUser, logout, isAuthenticated: !!token }}>
       {children}
     </AuthContext.Provider>
   );

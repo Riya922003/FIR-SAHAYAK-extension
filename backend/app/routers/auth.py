@@ -12,12 +12,14 @@ from app.core.security import (
     get_current_user,
 )
 from app.models.user import User
+from app.models.fir import PoliceStation
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
     TokenResponse,
     UserResponse,
     RefreshTokenRequest,
+    StationSetRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -101,4 +103,26 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: User = Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me/station", response_model=UserResponse)
+async def set_my_station(
+    payload: StationSetRequest,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Officer sets their own station on first login. Blocked once station_id is already set."""
+    if current_user.station_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Station already assigned. Contact your admin to change it.",
+        )
+    station = await session.get(PoliceStation, payload.station_id)
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    current_user.station_id = payload.station_id
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
     return current_user
