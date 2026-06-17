@@ -4,10 +4,11 @@ import UnassignedQueue from '../components/officer/UnassignedQueue';
 import OfficerMyCases from '../components/officer/OfficerMyCases';
 import OfficerFIRDetail from '../components/officer/OfficerFIRDetail';
 import AllCases from '../components/officer/AllCases';
+import OfficerProfile from '../components/officer/OfficerProfile';
 import StationPicker from '../components/officer/StationPicker';
 import '../styles/officer.css';
 
-type View = 'queue' | 'my-cases' | 'detail' | 'all-cases';
+type View = 'queue' | 'my-cases' | 'detail' | 'all-cases' | 'profile';
 
 export default function OfficerDashboard() {
   const { user, logout } = useAuth();
@@ -69,10 +70,12 @@ export default function OfficerDashboard() {
 
           <div className="sidebar-divider" style={{ marginTop: 'auto' }} />
 
-          <div className="sidebar-user">
-            <div className="sidebar-user-name">{user?.full_name}</div>
-            <div className="sidebar-user-role">{user?.role?.replace(/_/g, ' ')}</div>
-          </div>
+          <button
+            className={`sidebar-item${view === 'profile' ? ' active officer-active' : ''}`}
+            onClick={() => setView('profile')}
+          >
+            My Profile
+          </button>
 
           <button className="sidebar-item sidebar-logout" onClick={logout}>
             Sign Out
@@ -99,6 +102,7 @@ export default function OfficerDashboard() {
             onRefresh={handleRefresh}
           />
         )}
+        {view === 'profile' && <OfficerProfile />}
       </main>
     </div>
   );

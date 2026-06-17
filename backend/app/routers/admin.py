@@ -103,6 +103,17 @@ async def list_stations(
     return result.all()
 
 
+@router.get("/stations/{station_id}", response_model=StationResponse)
+async def get_station(
+    station_id: str,
+    session: AsyncSession = Depends(get_session),
+):
+    station = await session.get(PoliceStation, station_id)
+    if not station:
+        raise HTTPException(status_code=404, detail="Station not found")
+    return station
+
+
 @router.get("/stations/nearby", response_model=List[StationResponse])
 async def stations_nearby(
     address: str = Query(..., min_length=5, description="Incident address"),

@@ -67,6 +67,12 @@ export async function updateFIRStatus(
   return res.json();
 }
 
+export async function getStation(stationId: string): Promise<{ id: string; name: string; district: string; state: string; address: string; phone?: string }> {
+  const res = await fetch(`${API_URL}/api/v1/admin/stations/${stationId}`);
+  if (!res.ok) await handleError(res);
+  return res.json();
+}
+
 // Transition map mirrors backend VALID_TRANSITIONS
 export const OFFICER_TRANSITIONS: Record<string, string[]> = {
   acknowledged:       ['under_investigation'],
