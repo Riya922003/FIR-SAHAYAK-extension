@@ -120,8 +120,6 @@ async def stations_nearby(
         )
 
     places = await overpass_police_stations(location["lat"], location["lng"])
-    if not places:
-        places = await overpass_police_stations(location["lat"], location["lng"], radius=15000)
 
     if not places:
         raise HTTPException(

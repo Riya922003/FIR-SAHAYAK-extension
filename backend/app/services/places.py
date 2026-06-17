@@ -26,6 +26,7 @@ def _geocoding_candidates(address: str) -> list[str]:
     """
     Return address variants to try, from most-specific to least-specific.
     Handles informal Indian addresses like "Near SBI ATM, Sector 21, Noida".
+    Capped at 3 candidates so geocoding stays under ~12s total.
     """
     candidates = []
 
@@ -42,15 +43,15 @@ def _geocoding_candidates(address: str) -> list[str]:
     if len(parts) >= 2:
         candidates.append(", ".join(parts[-2:]))
 
-    # 4. Last 1 part → "Noida"
+    # 4. Last 1 part → "Noida" (city-only fallback)
     if len(parts) >= 1:
         candidates.append(parts[-1])
 
-    # Deduplicate while preserving order
+    # Deduplicate while preserving order, cap at 3 to bound worst-case latency
     seen: set[str] = set()
     result = []
     for c in candidates:
-        if c not in seen:
+        if c not in seen and len(result) < 3:
             seen.add(c)
             result.append(c)
     return result
@@ -59,20 +60,22 @@ def _geocoding_candidates(address: str) -> list[str]:
 async def geocode_nominatim(address: str) -> Optional[dict]:
     """
     Convert a free-text Indian address → {lat, lng, state, district}.
-    Tries multiple address variants so informal descriptions like
-    "Near SBI ATM, Sector 21, Noida" still resolve correctly.
-    Returns None only if every candidate fails.
+    Per-attempt timeout: 4s. Max 3 candidates → worst-case ~12s total.
+    Returns None only if every candidate fails or times out.
     """
-    async with httpx.AsyncClient(timeout=10, headers=_HEADERS) as client:
+    async with httpx.AsyncClient(timeout=4, headers=_HEADERS) as client:
         for candidate in _geocoding_candidates(address):
-            r = await client.get(NOMINATIM_URL, params={
-                "q": candidate,
-                "format": "json",
-                "limit": 1,
-                "countrycodes": "in",
-                "addressdetails": "1",
-            })
-            results = r.json()
+            try:
+                r = await client.get(NOMINATIM_URL, params={
+                    "q": candidate,
+                    "format": "json",
+                    "limit": 1,
+                    "countrycodes": "in",
+                    "addressdetails": "1",
+                })
+                results = r.json()
+            except (httpx.TimeoutException, httpx.HTTPError):
+                continue
             if results:
                 hit  = results[0]
                 addr = hit.get("address", {})
@@ -94,22 +97,27 @@ async def geocode_nominatim(address: str) -> Optional[dict]:
     return None
 
 
-async def overpass_police_stations(lat: float, lng: float, radius: int = 5000) -> list[dict]:
+async def overpass_police_stations(lat: float, lng: float, radius: int = 10000) -> list[dict]:
     """
     Search OpenStreetMap Overpass for police stations within `radius` metres.
-    Returns up to 10 results.
+    Default radius raised to 10 km — eliminates the need for a second fallback call.
+    Overpass query timeout: 8s. HTTP client timeout: 12s.
+    Returns up to 10 results, or [] on timeout/error.
     """
     query = (
-        f"[out:json][timeout:30];"
+        f"[out:json][timeout:8];"
         f"("
         f'node["amenity"="police"](around:{radius},{lat},{lng});'
         f'way["amenity"="police"](around:{radius},{lat},{lng});'
         f");"
         f"out body center;"
     )
-    async with httpx.AsyncClient(timeout=35) as client:
-        r = await client.post(OVERPASS_URL, data={"data": query})
-        data = r.json()
+    try:
+        async with httpx.AsyncClient(timeout=12) as client:
+            r = await client.post(OVERPASS_URL, data={"data": query})
+            data = r.json()
+    except (httpx.TimeoutException, httpx.HTTPError):
+        return []
 
     stations = []
     for el in data.get("elements", [])[:10]:
