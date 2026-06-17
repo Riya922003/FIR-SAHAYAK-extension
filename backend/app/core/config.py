@@ -18,8 +18,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # AI
+    # AI (Gemini)
     GOOGLE_API_KEY: str
+
+    # Maps (Places API for police station search)
+    GOOGLE_MAPS_API_KEY: str = ""
 
     # Email
     MAIL_USERNAME: str = ""

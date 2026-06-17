@@ -112,11 +112,11 @@ async def stations_nearby(
     """
     from app.services.places import search_police_stations_by_text
 
-    if not settings.GOOGLE_API_KEY:
-        raise HTTPException(503, detail="Location service not configured.")
+    if not settings.GOOGLE_MAPS_API_KEY:
+        raise HTTPException(503, detail="Location service not configured. Set GOOGLE_MAPS_API_KEY.")
 
     try:
-        places = await search_police_stations_by_text(address, settings.GOOGLE_API_KEY)
+        places = await search_police_stations_by_text(address, settings.GOOGLE_MAPS_API_KEY)
     except ValueError as e:
         raise HTTPException(503, detail=str(e))
 
