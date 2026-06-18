@@ -125,7 +125,7 @@ async def get_district_stats(
     district = _district(current_user)
 
     station_ids = list(
-        (await session.exec(select(PoliceStation.id).where(PoliceStation.district == district))).all()
+        (await session.exec(select(PoliceStation.id).where(func.lower(PoliceStation.district) == district.lower()))).all()
     )
     total_stations = len(station_ids)
 
@@ -173,7 +173,7 @@ async def get_district_stations(
 
     stations = (await session.exec(
         select(PoliceStation)
-        .where(PoliceStation.district == district)
+        .where(func.lower(PoliceStation.district) == district.lower())
         .order_by(PoliceStation.name)
     )).all()
 
@@ -229,7 +229,7 @@ async def get_district_escalations(
     district = _district(current_user)
 
     station_ids_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
     )).all()
     station_map = {row[0]: row[1] for row in station_ids_rows}
 
@@ -331,7 +331,7 @@ async def get_district_cases(
     district = _district(current_user)
 
     station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
     )).all()
     station_map = {row[0]: row[1] for row in station_rows}
 
@@ -410,7 +410,7 @@ async def get_district_directives(
     district = _district(current_user)
 
     station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
     )).all()
     station_map = {row[0]: row[1] for row in station_rows}
     if not station_map:
@@ -458,7 +458,7 @@ async def get_district_officers(
     district = _district(current_user)
 
     station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(PoliceStation.district == district)
+        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
     )).all()
     station_map = {row[0]: row[1] for row in station_rows}
     if not station_map:
