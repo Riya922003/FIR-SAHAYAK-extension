@@ -49,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('fir_token');
     localStorage.removeItem('fir_refresh_token');
     localStorage.removeItem('fir_user');
+    window.location.replace('/');
   };
 
   return (

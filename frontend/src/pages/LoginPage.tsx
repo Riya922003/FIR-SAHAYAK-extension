@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { loginUser } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import '../styles/auth.css';
@@ -12,9 +12,20 @@ const ROLE_CONFIG: Record<LoginRole, { label: string; subtitle: string; showRegi
   authority: { label: 'Higher Authority', subtitle: 'District-level oversight and escalation management',  showRegister: false, testCreds: { email: 'riya98012@work.com', password: 'Riya@@2003' } },
 };
 
+function getHomeRoute(role: string): string {
+  if (role === 'higher_authority') return '/authority';
+  if (role === 'officer' || role === 'station_admin') return '/officer';
+  return '/dashboard';
+}
+
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
+
+  // Already logged in — send straight to their dashboard
+  if (isAuthenticated && user) {
+    return <Navigate to={getHomeRoute(user.role)} replace />;
+  }
 
   const [selectedRole, setSelectedRole] = useState<LoginRole>('citizen');
   const [form, setForm] = useState({ email: '', password: '' });
