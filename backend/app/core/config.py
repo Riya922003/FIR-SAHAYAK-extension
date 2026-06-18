@@ -7,7 +7,11 @@ class Settings(BaseSettings):
     # App
     APP_NAME: str = "FIR Sahayak"
     DEBUG: bool = False
-    ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
+    ALLOWED_ORIGINS: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://fir-sahayak-extension-two.vercel.app",
+    ]
 
     # Database
     DATABASE_URL: str
