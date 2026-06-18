@@ -121,6 +121,12 @@ export async function escalateFIR(token: string, id: string, reason: string): Pr
   return data;
 }
 
+export async function getStationDistricts(): Promise<string[]> {
+  const res = await fetch(`${API_URL}/api/v1/admin/stations/districts`);
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export async function getStations(token: string): Promise<PoliceStation[]> {
   const res = await fetch(`${API_URL}/api/v1/admin/stations`, { headers: authH(token) });
   if (!res.ok) return [];

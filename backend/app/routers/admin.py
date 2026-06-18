@@ -103,6 +103,18 @@ async def list_stations(
     return result.all()
 
 
+@router.get("/stations/districts", response_model=List[str])
+async def list_station_districts(session: AsyncSession = Depends(get_session)):
+    """Returns distinct district values that actually exist in the stations table."""
+    rows = (await session.exec(
+        select(PoliceStation.district)
+        .distinct()
+        .where(PoliceStation.district != "Unknown")
+        .order_by(PoliceStation.district)
+    )).all()
+    return [r for r in rows if r and r.strip()]
+
+
 @router.get("/stations/nearby", response_model=List[StationResponse])
 async def stations_nearby(
     address: str = Query(..., min_length=5, description="Incident address"),
