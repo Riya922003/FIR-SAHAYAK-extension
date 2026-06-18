@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getFIRDetail, cancelFIR, escalateFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import { getFIRDetail, cancelFIR, escalateFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
   firId: string;
@@ -92,14 +92,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
       <div className="dash-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <h1>{fir.fir_number}</h1>
-          <span
-            className="status-badge"
-            style={{
-              background: STATUS_COLORS[fir.status] + '1a',
-              color: STATUS_COLORS[fir.status],
-              fontSize: '0.8rem',
-            }}
-          >
+          <span className={`status-badge status-badge--${fir.status}`}>
             {STATUS_LABELS[fir.status]}
           </span>
         </div>
@@ -108,7 +101,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
 
       {/* FIR Info */}
       <div className="dash-card">
-        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 className="section-label">
           Incident Details
         </h2>
         <div className="fir-detail-grid">
@@ -143,7 +136,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
 
       {/* Status Timeline */}
       <div className="dash-card">
-        <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 className="section-label">
           Status Timeline
         </h2>
 
@@ -211,7 +204,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
       {/* Actions */}
       {(canCancel || canEscalate) && (
         <div className="dash-card">
-          <h2 style={{ fontSize: '0.9rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <h2 className="section-label">
             Actions
           </h2>
 

@@ -7,7 +7,6 @@ import CitizenDashboard from './pages/CitizenDashboard';
 import OfficerDashboard from './pages/OfficerDashboard';
 import AuthorityDashboard from './pages/AuthorityDashboard';
 import { Component, ReactNode } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 
 /* ── Error Boundary — catches render errors and shows them instead of blank ── */
 interface EBState { hasError: boolean; message: string }
@@ -103,7 +102,6 @@ export default function App() {
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
-      <Analytics />
     </BrowserRouter>
   );
 }

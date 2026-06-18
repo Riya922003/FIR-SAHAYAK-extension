@@ -449,28 +449,27 @@ export default function FileFIR({ onSuccess, onCancel }: Props) {
           )}
 
           {/* ── Navigation ── */}
-          <div className="action-bar" style={{ marginTop: '1.75rem' }}>
+          <div className="action-bar" style={{ marginTop: '1.75rem', justifyContent: 'space-between', alignItems: 'center' }}>
             {currentStep < 3 ? (
               <>
-                <button type="button" className="btn-primary" onClick={goNext}>
-                  Next →
-                </button>
-                {currentStep > 0 && (
-                  <button type="button" className="btn-secondary" onClick={goBack}>
-                    ← Back
-                  </button>
-                )}
-                <button type="button" className="btn-secondary" onClick={onCancel}>
-                  Cancel
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  {currentStep > 0 && (
+                    <button type="button" className="btn-secondary" onClick={goBack}>← Back</button>
+                  )}
+                  <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+                </div>
+                <button type="button" className="btn-primary" onClick={goNext} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  Next
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  </svg>
                 </button>
               </>
             ) : (
               <>
+                <button type="button" className="btn-secondary" onClick={goBack} disabled={loading}>← Back</button>
                 <button type="submit" className="btn-primary" disabled={loading}>
                   {loading ? 'Filing FIR…' : 'Submit FIR'}
-                </button>
-                <button type="button" className="btn-secondary" onClick={goBack} disabled={loading}>
-                  ← Back
                 </button>
               </>
             )}

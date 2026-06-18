@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getMyFIRs, type FIR } from '../api/fir';
 import Overview from '../components/dashboard/Overview';
@@ -10,10 +11,25 @@ import '../styles/dashboard.css';
 
 type View = 'overview' | 'my-firs' | 'detail' | 'file-fir' | 'profile';
 
-const NAV_ITEMS: { view: View; label: string; icon: string; disabled?: boolean }[] = [
-  { view: 'overview', label: 'Overview',       icon: '🏠' },
-  { view: 'my-firs',  label: 'My FIRs',        icon: '📋' },
-  { view: 'file-fir', label: 'File Complaint', icon: '✏️' },
+const NAV_ITEMS: { view: View; label: string; icon: ReactNode; disabled?: boolean }[] = [
+  { view: 'overview', label: 'Overview', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+      <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+    </svg>
+  )},
+  { view: 'my-firs', label: 'My FIRs', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  )},
+  { view: 'file-fir', label: 'File Complaint', icon: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </svg>
+  )},
 ];
 
 export default function CitizenDashboard() {
@@ -92,19 +108,6 @@ export default function CitizenDashboard() {
             </button>
           ))}
 
-          <div className="sidebar-divider" />
-
-          <button
-            className="sidebar-item disabled"
-            title={collapsed ? 'AI Help (Coming soon)' : undefined}
-          >
-            <span className="item-icon">🤖</span>
-            <span className="item-label">
-              AI Help
-              <span className="soon-badge">Soon</span>
-            </span>
-          </button>
-
           <div className="sidebar-divider" style={{ marginTop: 'auto' }} />
 
           <button
@@ -112,7 +115,11 @@ export default function CitizenDashboard() {
             onClick={() => navigate('profile')}
             title={collapsed ? 'My Profile' : undefined}
           >
-            <span className="item-icon">👤</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
             <span className="item-label">My Profile</span>
           </button>
 
@@ -121,7 +128,12 @@ export default function CitizenDashboard() {
             onClick={logout}
             title={collapsed ? 'Sign Out' : undefined}
           >
-            <span className="item-icon">🚪</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </span>
             <span className="item-label">Sign Out</span>
           </button>
         </nav>
@@ -193,6 +205,25 @@ export default function CitizenDashboard() {
             </div>
             <Profile />
           </>
+        )}
+
+        {/* AI Help banner — shown on all views except detail */}
+        {view !== 'detail' && (
+          <div className="ai-help-banner">
+            <div className="ai-help-banner-body">
+              <div className="ai-help-banner-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <div>
+                <div className="ai-help-banner-title">AI-Powered Legal Help</div>
+                <div className="ai-help-banner-sub">Get instant guidance on your FIR status and legal rights</div>
+              </div>
+            </div>
+            <span className="ai-help-banner-badge">Coming Soon</span>
+          </div>
         )}
       </main>
     </div>

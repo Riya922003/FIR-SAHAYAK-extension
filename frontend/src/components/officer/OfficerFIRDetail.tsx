@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getOfficerFIRDetail, updateFIRStatus, OFFICER_TRANSITIONS, NEXT_STATUS_LABELS } from '../../api/officer';
-import { INCIDENT_LABELS, STATUS_LABELS, STATUS_COLORS, type FIRDetail } from '../../api/fir';
+import { INCIDENT_LABELS, STATUS_LABELS, type FIRDetail } from '../../api/fir';
 
 interface Props {
   firId: string;
@@ -81,11 +81,7 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
       <div className="dash-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <h1>{fir.fir_number}</h1>
-          <span className="status-badge" style={{
-            background: STATUS_COLORS[fir.status] + '1a',
-            color: STATUS_COLORS[fir.status],
-            fontSize: '0.8rem',
-          }}>
+          <span className={`status-badge status-badge--${fir.status}`}>
             {STATUS_LABELS[fir.status]}
           </span>
         </div>

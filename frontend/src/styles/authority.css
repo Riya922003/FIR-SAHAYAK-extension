@@ -1,47 +1,44 @@
 /* ============================================================
    FIR Sahayak — Higher Authority Portal Styles
-   Purple accent (#8b5cf6) to distinguish from citizen (green) and officer (blue)
+   Violet accent to distinguish from citizen (indigo) and officer (blue)
    ============================================================ */
 
 .authority-sidebar .sidebar-item.active.authority-active {
-  background: rgba(139, 92, 246, 0.12);
-  color: #8b5cf6;
-  border-left: 3px solid #8b5cf6;
-}
-
-.authority-sidebar .sidebar-item.active.authority-active + .item-label {
-  color: #8b5cf6;
+  background: transparent;
+  color: var(--color-authority);
+  border-left: 3px solid var(--color-authority);
+  font-weight: var(--weight-semibold);
 }
 
 /* ── Profile ── */
 .authority-avatar {
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+  background: linear-gradient(135deg, var(--color-authority), var(--color-authority-deep)) !important;
 }
 
 .authority-role-badge {
-  background: rgba(139, 92, 246, 0.1) !important;
-  color: #6d28d9 !important;
+  background: var(--color-authority-subtle) !important;
+  color: var(--color-authority-deep) !important;
 }
 
 /* ── District Picker (first login) ── */
 .district-picker-overlay {
   min-height: 100vh;
-  background: #f1f5f9;
+  background: var(--bg-base);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .district-picker-card {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-overlay);
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 460px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default);
 }
 
 .district-picker-header {
@@ -56,14 +53,14 @@
 
 .district-picker-header h2 {
   font-size: 1.4rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
   margin: 0 0 0.5rem;
 }
 
 .district-picker-header p {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: var(--text-base);
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.6;
 }
@@ -75,8 +72,8 @@
 }
 
 .district-picker-hint {
-  font-size: 0.78rem;
-  color: #94a3b8;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
   text-align: center;
   margin-top: 0.75rem;
 }
@@ -90,37 +87,37 @@
 }
 
 .authority-stat-card {
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   padding: 1.1rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-top: 3px solid #94a3b8;
+  border: 1px solid var(--border-default);
+  border-top: 3px solid var(--text-faint);
   text-align: center;
 }
 
 .authority-stat-num {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-extrabold);
+  color: var(--text-primary);
   line-height: 1;
   margin-bottom: 0.3rem;
 }
 
 .authority-stat-label {
-  font-size: 0.72rem;
-  color: #64748b;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
+  font-weight: var(--weight-semibold);
 }
 
-/* ── Placeholder card (shown during phase build-out) ── */
+/* ── Placeholder card ── */
 .authority-placeholder-card {
-  background: #ffffff;
-  border-radius: 16px;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
   padding: 3rem 2rem;
   text-align: center;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  box-shadow: var(--shadow-card);
   max-width: 480px;
 }
 
@@ -131,14 +128,14 @@
 
 .authority-placeholder-card h2 {
   font-size: 1.2rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
   margin: 0 0 0.75rem;
 }
 
 .authority-placeholder-card p {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: var(--text-base);
+  color: var(--text-muted);
   margin: 0 0 1.5rem;
   line-height: 1.65;
 }
@@ -148,24 +145,24 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
-  background: rgba(139, 92, 246, 0.06);
-  border: 1.5px solid rgba(139, 92, 246, 0.2);
+  background: var(--color-authority-subtle);
+  border: 1.5px solid rgba(139, 92, 246, 0.20);
   border-radius: 10px;
   padding: 0.75rem 1.75rem;
 }
 
 .authority-district-label {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #8b5cf6;
+  letter-spacing: var(--tracking-widest);
+  color: var(--color-authority);
 }
 
 .authority-district-value {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
 }
 
 /* ── Refresh button ── */
@@ -174,18 +171,23 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.45rem 1rem;
-  font-size: 0.825rem;
-  font-weight: 600;
-  color: #64748b;
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 }
-.btn-refresh:hover { border-color: #8b5cf6; color: #8b5cf6; }
+.btn-refresh:hover { border-color: var(--color-authority); color: var(--color-authority); }
 .btn-refresh:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Authority collapsed sidebar active fix ── */
+.authority-sidebar.sidebar-collapsed .sidebar-item.active.authority-active {
+  padding-left: calc(0.65rem - 3px);
+}
 
 /* ── Responsive ── */
 @media (max-width: 900px) {

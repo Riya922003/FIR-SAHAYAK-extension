@@ -1,5 +1,16 @@
 import { Fragment } from 'react';
+import type React from 'react';
 import { type FIR, type FIRStatus, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+
+const STATUS_MESSAGES: Partial<Record<FIRStatus, string>> = {
+  submitted:           'Your complaint has been received and is awaiting officer assignment.',
+  acknowledged:        'An officer has acknowledged your FIR and will begin the investigation shortly.',
+  under_investigation: 'Your case is actively being investigated by the assigned officer.',
+  resolved:            'This case has been resolved by the station.',
+  rejected:            'This FIR was rejected. View details or contact the station for clarification.',
+  closed:              'This FIR has been closed.',
+  escalated:           'Your case has been escalated to the district authority for review.',
+};
 
 interface Props {
   firs: FIR[];
@@ -84,7 +95,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
       {/* ══ Active Case Hero ══ */}
       <div
         className="ov-hero"
-        style={{ borderTop: `4px solid ${STATUS_COLORS[hero.status]}` }}
+        style={{ '--hero-status-color': STATUS_COLORS[hero.status] } as React.CSSProperties}
         onClick={() => onViewFIR(hero.id)}
         role="button"
         tabIndex={0}
@@ -108,14 +119,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
             </div>
           </div>
           <div className="ov-hero-right">
-            <span
-              className="ov-status-pill"
-              style={{
-                background: STATUS_COLORS[hero.status] + '18',
-                color: STATUS_COLORS[hero.status],
-                border: `1px solid ${STATUS_COLORS[hero.status]}40`,
-              }}
-            >
+            <span className={`ov-status-pill status-badge--${hero.status}`}>
               {hero.status.replace(/_/g, ' ')}
             </span>
             <div className="ov-updated">Updated {timeAgo(hero.updated_at)}</div>
@@ -144,12 +148,19 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
                   <div className={`ov-tl-label${isPending ? ' muted' : ''}`}>{step.label}</div>
                 </div>
                 {idx < steps.length - 1 && (
-                  <div className={`ov-tl-line${isDone ? ' done' : ''}`} />
+                  <div className={`ov-tl-line${idx < currentIdx ? ' done' : ' pending'}`} />
                 )}
               </Fragment>
             );
           })}
         </div>
+
+        {/* Contextual status message */}
+        {STATUS_MESSAGES[hero.status] && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: '0 0 1.25rem', lineHeight: 1.55 }}>
+            {STATUS_MESSAGES[hero.status]}
+          </p>
+        )}
 
         {/* Footer */}
         <div className="ov-hero-footer">
@@ -177,14 +188,7 @@ export default function Overview({ firs, loading, onViewFIR, onFileFIR }: Props)
                     {new Date(fir.incident_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                   </span>
                 </div>
-                <span
-                  className="ov-status-pill"
-                  style={{
-                    background: STATUS_COLORS[fir.status] + '18',
-                    color: STATUS_COLORS[fir.status],
-                    border: `1px solid ${STATUS_COLORS[fir.status]}40`,
-                  }}
-                >
+                <span className={`ov-status-pill status-badge--${fir.status}`}>
                   {fir.status.replace(/_/g, ' ')}
                 </span>
               </div>

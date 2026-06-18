@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type React from 'react';
 import { type FIR, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
 
 interface Props {
@@ -35,20 +36,26 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
 
       {/* Filter tabs */}
       <div className="filter-tabs">
-        {FILTERS.map(f => (
-          <button
-            key={f.value}
-            className={`filter-tab${activeFilter === f.value ? ' active' : ''}`}
-            onClick={() => setActiveFilter(f.value)}
-          >
-            {f.label}
-            {f.value !== 'ALL' && (
-              <span style={{ marginLeft: '0.4rem', opacity: 0.7 }}>
-                ({firs.filter(fir => fir.status === f.value).length})
-              </span>
-            )}
-          </button>
-        ))}
+        {FILTERS.map(f => {
+          const count = f.value !== 'ALL' ? firs.filter(fir => fir.status === f.value).length : null;
+          const isZero = count !== null && count === 0;
+          return (
+            <button
+              key={f.value}
+              className={[
+                'filter-tab',
+                activeFilter === f.value ? 'active' : '',
+                isZero ? 'zero-count' : '',
+              ].filter(Boolean).join(' ')}
+              onClick={() => setActiveFilter(f.value)}
+            >
+              {f.label}
+              {count !== null && (
+                <span style={{ marginLeft: '0.4rem', opacity: 0.65 }}>({count})</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -76,8 +83,12 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
           </thead>
           <tbody>
             {filtered.map(fir => (
-              <tr key={fir.id} onClick={() => onViewFIR(fir.id)}>
-                <td><strong>{fir.fir_number}</strong></td>
+              <tr
+                key={fir.id}
+                onClick={() => onViewFIR(fir.id)}
+                style={{ '--row-accent': STATUS_COLORS[fir.status] } as React.CSSProperties}
+              >
+                <td><strong className="fir-number">{fir.fir_number}</strong></td>
                 <td>{INCIDENT_LABELS[fir.incident_type]}</td>
                 <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {fir.incident_location}
@@ -85,13 +96,7 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
                 <td>{new Date(fir.incident_date).toLocaleDateString('en-IN')}</td>
                 <td>{new Date(fir.created_at).toLocaleDateString('en-IN')}</td>
                 <td>
-                  <span
-                    className="status-badge"
-                    style={{
-                      background: STATUS_COLORS[fir.status] + '1a',
-                      color: STATUS_COLORS[fir.status],
-                    }}
-                  >
+                  <span className={`status-badge status-badge--${fir.status}`}>
                     {STATUS_LABELS[fir.status]}
                   </span>
                 </td>

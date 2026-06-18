@@ -12,7 +12,7 @@
 html, body {
   height: 100%;
   width: 100%;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   scroll-behavior: smooth;
 }
 
@@ -60,7 +60,7 @@ nav.fir-nav h1 {
 }
 
 nav.fir-nav .nav-login-btn {
-  background-color: rgb(30, 201, 144);
+  background-color: var(--color-primary);
   display: flex;
   align-items: center;
   padding: 10px 18px;
@@ -363,7 +363,7 @@ span.slider-next:hover {
 }
 
 #page5 .register-btn {
-  background-color: rgb(30, 201, 144);
+  background-color: var(--color-primary);
   padding: 0.9vw 2.5vw;
   font-weight: 700;
   font-size: 1vw;
@@ -380,7 +380,7 @@ span.slider-next:hover {
 
 #page5 .register-btn:hover {
   transform: scale(1.05);
-  background-color: #13c47f;
+  background-color: var(--color-primary-hover);
 }
 
 #page5-right {
@@ -545,7 +545,7 @@ footer.fir-footer {
   top: 100%;
   width: 0;
   height: 2px;
-  background: rgb(30, 201, 144);
+  background: var(--color-primary);
   transition: width 0.5s;
 }
 
@@ -573,7 +573,7 @@ footer.fir-footer {
 }
 
 .social-icons li a:hover {
-  color: rgb(30, 201, 144);
+  color: var(--color-primary);
 }
 
 .bottom-bar {

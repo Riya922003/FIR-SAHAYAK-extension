@@ -2,49 +2,50 @@
    FIR Sahayak — Officer / Admin Portal Styles
    ============================================================ */
 
-/* Officer sidebar accent — blue instead of citizen's green */
+/* Officer sidebar accent — blue */
 .officer-sidebar .sidebar-item.active.officer-active {
-  background: rgba(59, 130, 246, 0.12);
-  color: #3b82f6;
-  border-left: 3px solid #3b82f6;
+  background: transparent;
+  color: var(--color-officer);
+  border-left: 3px solid var(--color-officer);
+  font-weight: var(--weight-semibold);
 }
 
 .officer-sidebar .sidebar-item:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.06);
-  color: #e2e8f0;
+  background: transparent;
+  color: var(--sidebar-text);
 }
 
 /* Officer identity block in sidebar */
 .sidebar-user {
   padding: 0.75rem 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
   margin-bottom: 0.25rem;
 }
 
 .sidebar-user-name {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #e2e8f0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--sidebar-item-hover-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .sidebar-user-role {
-  font-size: 0.68rem;
-  color: #64748b;
+  font-size: var(--text-2xs);
+  color: var(--sidebar-text-muted);
   text-transform: capitalize;
   margin-top: 0.1rem;
 }
 
 .sidebar-logout {
-  color: #f87171 !important;
+  color: var(--color-danger-light) !important;
 }
 
 .sidebar-logout:hover {
-  background: rgba(248, 113, 113, 0.1) !important;
-  color: #ef4444 !important;
+  background: var(--color-danger-hover-bg) !important;
+  color: var(--color-danger) !important;
 }
 
 /* ── Stats row ── */
@@ -56,44 +57,44 @@
 }
 
 .officer-stat-card {
-  background: #ffffff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
   padding: 1.1rem 1rem;
-  border: 1px solid #e2e8f0;
-  border-top: 3px solid #94a3b8;
+  border: 1px solid var(--border-default);
+  border-top: 3px solid var(--text-faint);
   text-align: center;
 }
 
 .officer-stat-num {
-  font-size: 1.75rem;
-  font-weight: 800;
-  color: #0f172a;
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-extrabold);
+  color: var(--text-primary);
   line-height: 1;
   margin-bottom: 0.3rem;
 }
 
 .officer-stat-label {
-  font-size: 0.72rem;
-  color: #64748b;
+  font-size: var(--text-2xs);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
+  font-weight: var(--weight-semibold);
 }
 
 /* ── Empty state ── */
 .officer-empty {
   text-align: center;
   padding: 4rem 2rem;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .officer-empty-icon {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: #f0fdf4;
-  border: 2px solid #86efac;
-  color: #16a34a;
+  background: var(--color-success-subtle);
+  border: 2px solid var(--color-success-border);
+  color: var(--color-success-hover);
   font-size: 1.5rem;
   display: flex;
   align-items: center;
@@ -103,43 +104,43 @@
 
 .officer-empty h3 {
   font-size: 1.1rem;
-  font-weight: 700;
-  color: #334155;
+  font-weight: var(--weight-bold);
+  color: var(--text-secondary);
   margin: 0 0 0.4rem;
 }
 
 .officer-empty p {
-  font-size: 0.875rem;
+  font-size: var(--text-base);
   margin: 0;
 }
 
 /* ── Toast notification ── */
 .officer-toast {
-  background: #0f172a;
-  color: #f1f5f9;
+  background: var(--text-primary);
+  color: var(--bg-base);
   padding: 0.75rem 1.1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
   margin-bottom: 1rem;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 /* ── Acknowledge button ── */
 .btn-acknowledge {
-  background: #3b82f6;
+  background: var(--color-officer);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 0.45rem 0.9rem;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
 }
 
 .btn-acknowledge:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-officer-hover);
 }
 
 .btn-acknowledge:disabled {
@@ -151,7 +152,7 @@
 .fir-link-btn {
   background: none;
   border: none;
-  color: #3b82f6;
+  color: var(--color-officer);
   cursor: pointer;
   font-size: inherit;
   padding: 0;
@@ -161,12 +162,12 @@
 
 /* ── Section label ── */
 .section-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #64748b;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
   margin-bottom: 1rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-widest);
 }
 
 /* ── Status update form ── */
@@ -184,53 +185,53 @@
 
 .status-option-btn {
   padding: 0.6rem 1.25rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  font-size: 0.875rem;
-  font-weight: 600;
+  border: 2px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
   cursor: pointer;
-  color: #475569;
+  color: var(--text-mid);
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
 .status-option-btn:hover {
-  border-color: #3b82f6;
-  color: #3b82f6;
+  border-color: var(--color-officer);
+  color: var(--color-officer);
 }
 
 .status-option-btn.selected {
-  border-color: #3b82f6;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: var(--color-officer);
+  background: var(--color-officer-subtle);
+  color: var(--color-officer-deep);
 }
 
 .status-option-btn.danger:hover,
 .status-option-btn.danger.selected {
-  border-color: #ef4444;
-  background: #fef2f2;
-  color: #b91c1c;
+  border-color: var(--color-danger);
+  background: var(--color-danger-subtle);
+  color: var(--color-danger-hover);
 }
 
 .rejection-warning {
-  background: #fef2f2;
-  border: 1px solid #fca5a5;
-  color: #b91c1c;
+  background: var(--color-danger-subtle);
+  border: 1px solid var(--color-danger-border);
+  color: var(--color-danger-hover);
   padding: 0.65rem 0.9rem;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 500;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
 }
 
 .officer-textarea {
   width: 100%;
   padding: 0.75rem 0.9rem;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  color: #111;
-  background: #fafafa;
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-subtle);
   resize: vertical;
   outline: none;
   box-sizing: border-box;
@@ -238,53 +239,53 @@
 }
 
 .officer-textarea:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-  background: #fff;
+  border-color: var(--color-officer);
+  box-shadow: 0 0 0 3px var(--color-officer-muted);
+  background: var(--bg-card);
 }
 
 .officer-input {
   width: 100%;
   padding: 0.7rem 0.9rem;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  color: #111;
-  background: #fafafa;
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font-size: var(--text-md);
+  color: var(--text-primary);
+  background: var(--bg-subtle);
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .officer-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
-  background: #fff;
+  border-color: var(--color-officer);
+  box-shadow: 0 0 0 3px var(--color-officer-muted);
+  background: var(--bg-card);
 }
 
 .btn-status-submit {
-  background: #3b82f6;
+  background: var(--color-officer);
   color: #ffffff;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
   cursor: pointer;
   transition: background 0.15s;
   align-self: flex-start;
 }
 
 .btn-status-submit:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--color-officer-hover);
 }
 
 .btn-status-submit.danger {
-  background: #ef4444;
+  background: var(--color-danger);
 }
 
 .btn-status-submit.danger:hover:not(:disabled) {
-  background: #b91c1c;
+  background: var(--color-danger-hover);
 }
 
 .btn-status-submit:disabled {
@@ -294,21 +295,21 @@
 
 /* ── Officer profile ── */
 .officer-avatar {
-  background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important;
+  background: linear-gradient(135deg, var(--color-officer), var(--color-officer-deep)) !important;
 }
 
 .officer-role-badge {
-  background: rgba(59, 130, 246, 0.1) !important;
-  color: #1d4ed8 !important;
+  background: var(--color-officer-muted) !important;
+  color: var(--color-officer-deep) !important;
 }
 
 .station-info-card {
   display: flex;
   gap: 1.25rem;
   align-items: flex-start;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 12px;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-default);
+  border-radius: var(--radius-lg);
   padding: 1.25rem;
 }
 
@@ -326,22 +327,22 @@
 }
 
 .station-info-name {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
   margin-bottom: 0.25rem;
 }
 
 .station-info-row {
   display: flex;
   gap: 0.75rem;
-  font-size: 0.875rem;
-  color: #334155;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
 }
 
 .station-info-label {
-  font-weight: 600;
-  color: #64748b;
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
   min-width: 70px;
   flex-shrink: 0;
 }
@@ -349,22 +350,22 @@
 /* ── Station Picker (first login) ── */
 .station-picker-overlay {
   min-height: 100vh;
-  background: #f1f5f9;
+  background: var(--bg-base);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 2rem 1rem;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: var(--font-sans);
 }
 
 .station-picker-card {
-  background: #ffffff;
-  border-radius: 16px;
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.1);
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-overlay);
   padding: 2.5rem 2rem;
   width: 100%;
   max-width: 540px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-default);
 }
 
 .station-picker-header {
@@ -373,14 +374,14 @@
 
 .station-picker-header h2 {
   font-size: 1.4rem;
-  font-weight: 700;
-  color: #0f172a;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
   margin: 0 0 0.4rem;
 }
 
 .station-picker-header p {
-  font-size: 0.875rem;
-  color: #64748b;
+  font-size: var(--text-base);
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -403,8 +404,8 @@
 }
 
 .station-picker-item {
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-default);
   border-radius: 10px;
   padding: 0.9rem 1rem;
   text-align: left;
@@ -414,25 +415,25 @@
 }
 
 .station-picker-item:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: var(--color-officer);
+  background: var(--color-officer-subtle);
 }
 
 .station-picker-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #0f172a;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
 }
 
 .station-picker-meta {
-  font-size: 0.78rem;
-  color: #64748b;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
   margin-top: 0.2rem;
 }
 
 .station-picker-addr {
-  font-size: 0.75rem;
-  color: #94a3b8;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
   margin-top: 0.1rem;
 }
 
@@ -444,8 +445,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: #f0fdf4;
-  border: 1.5px solid #86efac;
+  background: var(--color-success-subtle);
+  border: 1.5px solid var(--color-success-border);
   border-radius: 10px;
   padding: 0.9rem 1rem;
 }
@@ -454,14 +455,19 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #22c55e;
+  background: var(--color-success);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  font-weight: 700;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   flex-shrink: 0;
+}
+
+/* ── Officer portal: restore blue for vertical timeline current dot ── */
+.officer-sidebar ~ .dashboard-main .timeline-dot.current {
+  background: var(--color-officer);
 }
 
 /* ── Officer collapsed sidebar active fix ── */

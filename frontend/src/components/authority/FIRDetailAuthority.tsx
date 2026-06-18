@@ -58,10 +58,7 @@ export default function FIRDetailAuthority({ firId, onBack }: Props) {
       <div className="dash-header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <h1>{fir.fir_number}</h1>
-          <span
-            className="status-badge"
-            style={{ background: STATUS_COLORS[fir.status] + '1a', color: STATUS_COLORS[fir.status], fontSize: '0.8rem' }}
-          >
+          <span className={`status-badge status-badge--${fir.status}`}>
             {STATUS_LABELS[fir.status]}
           </span>
         </div>
@@ -70,7 +67,7 @@ export default function FIRDetailAuthority({ firId, onBack }: Props) {
 
       {/* Incident Details */}
       <div className="dash-card">
-        <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 className="section-label">
           Incident Details
         </h2>
         <div className="fir-detail-grid">
@@ -93,7 +90,7 @@ export default function FIRDetailAuthority({ firId, onBack }: Props) {
 
       {/* Complainant */}
       <div className="dash-card">
-        <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 className="section-label">
           Complainant
         </h2>
         <div className="fir-detail-grid">
@@ -105,7 +102,7 @@ export default function FIRDetailAuthority({ firId, onBack }: Props) {
 
       {/* Status History */}
       <div className="dash-card">
-        <h2 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <h2 className="section-label">
           Status History
         </h2>
         {fir.status_history.length === 0 ? (
@@ -113,18 +110,25 @@ export default function FIRDetailAuthority({ firId, onBack }: Props) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {[...fir.status_history].reverse().map((h, i) => (
-              <div key={i} style={{ display: 'flex', gap: '1rem', padding: '0.75rem', background: '#f8fafc', borderRadius: 8, borderLeft: `3px solid ${STATUS_COLORS[h.new_status]}` }}>
+              <div
+                key={i}
+                style={{
+                  display: 'flex', gap: '1rem', padding: '0.75rem',
+                  background: 'var(--bg-subtle)', borderRadius: 'var(--radius-md)',
+                  borderLeft: `3px solid ${STATUS_COLORS[h.new_status]}`,
+                }}
+              >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, color: STATUS_COLORS[h.new_status], fontSize: '0.875rem' }}>
+                  <div style={{ fontWeight: 600, color: STATUS_COLORS[h.new_status], fontSize: 'var(--text-sm)' }}>
                     {STATUS_LABELS[h.new_status]}
                   </div>
                   {h.notes && (
-                    <div style={{ fontSize: '0.82rem', color: '#475569', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-mid)', marginTop: '0.25rem' }}>
                       {h.notes}
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>
+                <div style={{ fontSize: 'var(--text-2xs)', color: 'var(--text-faint)', whiteSpace: 'nowrap', alignSelf: 'flex-start' }}>
                   {new Date(h.changed_at).toLocaleDateString('en-IN')}
                   <br />
                   {new Date(h.changed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}

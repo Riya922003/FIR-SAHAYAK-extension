@@ -66,7 +66,12 @@ export default function OfficerDashboard() {
             onClick={() => setView('queue')}
             title={collapsed ? 'Unassigned Queue' : undefined}
           >
-            <span className="item-icon">📥</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
+              </svg>
+            </span>
             <span className="item-label">Unassigned Queue</span>
           </button>
           <button
@@ -74,7 +79,11 @@ export default function OfficerDashboard() {
             onClick={() => setView('my-cases')}
             title={collapsed ? 'My Cases' : undefined}
           >
-            <span className="item-icon">📁</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+              </svg>
+            </span>
             <span className="item-label">My Cases</span>
           </button>
           {isAdmin && (
@@ -83,7 +92,11 @@ export default function OfficerDashboard() {
               onClick={() => setView('all-cases')}
               title={collapsed ? 'All Station Cases' : undefined}
             >
-              <span className="item-icon">🗂️</span>
+              <span className="item-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/>
+                </svg>
+              </span>
               <span className="item-label">All Station Cases</span>
             </button>
           )}
@@ -95,7 +108,11 @@ export default function OfficerDashboard() {
             onClick={() => setView('profile')}
             title={collapsed ? 'My Profile' : undefined}
           >
-            <span className="item-icon">👤</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
+            </span>
             <span className="item-label">My Profile</span>
           </button>
 
@@ -104,7 +121,12 @@ export default function OfficerDashboard() {
             onClick={logout}
             title={collapsed ? 'Sign Out' : undefined}
           >
-            <span className="item-icon">🚪</span>
+            <span className="item-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </span>
             <span className="item-label">Sign Out</span>
           </button>
         </nav>

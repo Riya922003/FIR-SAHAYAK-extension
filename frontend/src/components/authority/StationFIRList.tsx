@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getStationFIRs, type StationHealth } from '../../api/authority';
-import { STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS, type FIR, type FIRStatus } from '../../api/fir';
+import { STATUS_LABELS, INCIDENT_LABELS, type FIR, type FIRStatus } from '../../api/fir';
 
 interface Props {
   station: StationHealth;
@@ -133,13 +133,7 @@ export default function StationFIRList({ station, onBack }: Props) {
                     {new Date(fir.updated_at).toLocaleDateString('en-IN')}
                   </td>
                   <td>
-                    <span
-                      className="status-badge"
-                      style={{
-                        background: STATUS_COLORS[fir.status] + '1a',
-                        color: STATUS_COLORS[fir.status],
-                      }}
-                    >
+                    <span className={`status-badge status-badge--${fir.status}`}>
                       {STATUS_LABELS[fir.status]}
                     </span>
                   </td>

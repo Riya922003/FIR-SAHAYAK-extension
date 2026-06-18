@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getDistrictCases, getDistrictStations, type FIRWithStation, type StationHealth } from '../../api/authority';
-import { STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS, type FIRStatus } from '../../api/fir';
+import { STATUS_LABELS, INCIDENT_LABELS, type FIRStatus } from '../../api/fir';
 
 const STATUS_FILTERS: { label: string; value: FIRStatus | 'all' }[] = [
   { label: 'All',           value: 'all' },
@@ -154,13 +154,7 @@ export default function ActiveCases({ onSelect }: Props) {
                 >
                   <td><strong>{c.fir_number}</strong></td>
                   <td>
-                    <span
-                      className="status-badge"
-                      style={{
-                        background: STATUS_COLORS[c.status] + '1a',
-                        color: STATUS_COLORS[c.status],
-                      }}
-                    >
+                    <span className={`status-badge status-badge--${c.status}`}>
                       {STATUS_LABELS[c.status]}
                     </span>
                   </td>

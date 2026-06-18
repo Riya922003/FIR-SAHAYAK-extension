@@ -1,0 +1,174 @@
+/* ============================================================
+   FIR Sahayak — Design Tokens
+   Import this file FIRST, before every other stylesheet.
+   All other CSS files reference these variables — never
+   hardcode a color, spacing value, or shadow again.
+   ============================================================ */
+
+:root {
+
+  /* ── Fonts ─────────────────────────────────────────────── */
+  --font-sans: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Courier New', Courier, monospace;
+
+  /* ── Type scale ─────────────────────────────────────────── */
+  --text-2xs:  0.68rem;   /* badge text, eyebrow labels   ~11px */
+  --text-xs:   0.75rem;   /* section titles, small labels ~12px */
+  --text-sm:   0.825rem;  /* form labels, helper text     ~13px */
+  --text-base: 0.875rem;  /* body text, table cells       ~14px */
+  --text-md:   0.925rem;  /* input text, slightly larger  ~15px */
+  --text-lg:   1rem;      /* card headings, nav items     ~16px */
+  --text-xl:   1.25rem;   /* profile names, sub-titles    ~20px */
+  --text-2xl:  1.5rem;    /* page titles                  ~24px */
+  --text-3xl:  1.75rem;   /* stat numbers                 ~28px */
+
+  /* ── Font weights ───────────────────────────────────────── */
+  --weight-normal:    400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  /* ── Letter spacing ─────────────────────────────────────── */
+  --tracking-tight:   -0.02em;
+  --tracking-normal:   0em;
+  --tracking-wide:     0.05em;
+  --tracking-wider:    0.07em;
+  --tracking-widest:   0.10em;
+
+  /* ── Spacing scale (4px base) ───────────────────────────── */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Border radius ──────────────────────────────────────── */
+  --radius-sm:   6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────────── */
+  --shadow-card:    0 1px 4px rgba(0, 0, 0, 0.06);
+  --shadow-raised:  0 2px 16px rgba(0, 0, 0, 0.08);
+  --shadow-hover:   0 6px 24px rgba(0, 0, 0, 0.11);
+  --shadow-overlay: 0 4px 40px rgba(0, 0, 0, 0.10);
+
+  /* ── Page backgrounds ───────────────────────────────────── */
+  --bg-base:   #f1f5f9;   /* page / layout background     */
+  --bg-subtle: #f8fafc;   /* alternate row, input bg      */
+  --bg-card:   #ffffff;   /* card / panel surface         */
+
+  /* ── Sidebar (light) ────────────────────────────────────── */
+  --sidebar-bg:             #ffffff;
+  --sidebar-border:         #e2e8f0;   /* right border + dividers  */
+  --sidebar-text:           #0f172a;   /* active item + hover text */
+  --sidebar-text-muted:     #64748b;   /* default item text        */
+  --sidebar-text-faint:     #94a3b8;   /* portal label             */
+  --sidebar-item-hover-bg:  transparent;
+  --sidebar-item-hover-text:#0f172a;
+  --sidebar-toggle-border:  #e2e8f0;
+
+  /* ── Text ───────────────────────────────────────────────── */
+  --text-primary:   #0f172a;   /* darkest — headings, values  */
+  --text-body:      #1e293b;   /* standard body text          */
+  --text-secondary: #334155;   /* secondary descriptions      */
+  --text-mid:       #475569;   /* form labels, sub-labels     */
+  --text-muted:     #64748b;   /* captions, metadata          */
+  --text-faint:     #94a3b8;   /* placeholders, dividers      */
+
+  /* ── Borders ────────────────────────────────────────────── */
+  --border-default: #e2e8f0;
+  --border-strong:  #cbd5e1;
+
+  /* ── Primary accent — indigo ────────────────────────────── */
+  --color-primary:        #4f46e5;
+  --color-primary-hover:  #4338ca;
+  --color-primary-subtle: rgba(79, 70, 229, 0.10);
+  --color-primary-muted:  #eef2ff;
+  --color-primary-glow:   rgba(79, 70, 229, 0.25);
+  --color-primary-text:   #3730a3;   /* text on --color-primary-muted */
+
+  /* ── Officer accent — blue ──────────────────────────────── */
+  --color-officer:        #3b82f6;
+  --color-officer-hover:  #2563eb;
+  --color-officer-deep:   #1d4ed8;
+  --color-officer-subtle: #eff6ff;   /* solid hex for bg use     */
+  --color-officer-muted:  rgba(59, 130, 246, 0.12);
+  --color-officer-glow:   rgba(59, 130, 246, 0.18);
+
+  /* ── Authority accent — violet ──────────────────────────── */
+  --color-authority:        #8b5cf6;
+  --color-authority-hover:  #7c3aed;
+  --color-authority-deep:   #6d28d9;
+  --color-authority-subtle: rgba(139, 92, 246, 0.08);
+  --color-authority-muted:  rgba(139, 92, 246, 0.12);
+
+  /* ── Success ────────────────────────────────────────────── */
+  --color-success:        #22c55e;
+  --color-success-hover:  #16a34a;
+  --color-success-subtle: #f0fdf4;
+  --color-success-border: #86efac;
+  --color-success-muted:  rgba(34, 197, 94, 0.10);
+
+  /* ── Warning ────────────────────────────────────────────── */
+  --color-warning:        #f59e0b;
+  --color-warning-text:   #92400e;
+  --color-warning-subtle: #fffbeb;
+  --color-warning-border: #fcd34d;
+
+  /* ── Danger ─────────────────────────────────────────────── */
+  --color-danger:          #ef4444;
+  --color-danger-hover:    #b91c1c;
+  --color-danger-text:     #dc2626;
+  --color-danger-light:    #f87171;
+  --color-danger-subtle:   #fef2f2;
+  --color-danger-border:   #fca5a5;
+  --color-danger-hover-bg: rgba(248, 113, 113, 0.10);
+
+  /* ── Status: draft ──────────────────────────────────────── */
+  --status-draft-bg:     #f1f5f9;
+  --status-draft-text:   #64748b;
+  --status-draft-border: #cbd5e1;
+
+  /* ── Status: submitted ──────────────────────────────────── */
+  --status-submitted-bg:     #fffbeb;
+  --status-submitted-text:   #92400e;
+  --status-submitted-border: #fcd34d;
+
+  /* ── Status: acknowledged ───────────────────────────────── */
+  --status-acknowledged-bg:     #eff6ff;
+  --status-acknowledged-text:   #1d4ed8;
+  --status-acknowledged-border: #bfdbfe;
+
+  /* ── Status: under investigation ───────────────────────── */
+  --status-investigating-bg:     #eef2ff;
+  --status-investigating-text:   #3730a3;
+  --status-investigating-border: #c7d2fe;
+
+  /* ── Status: resolved ───────────────────────────────────── */
+  --status-resolved-bg:     #f0fdf4;
+  --status-resolved-text:   #15803d;
+  --status-resolved-border: #86efac;
+
+  /* ── Status: rejected ───────────────────────────────────── */
+  --status-rejected-bg:     #fef2f2;
+  --status-rejected-text:   #b91c1c;
+  --status-rejected-border: #fca5a5;
+
+  /* ── Status: closed ─────────────────────────────────────── */
+  --status-closed-bg:     #f8fafc;
+  --status-closed-text:   #475569;
+  --status-closed-border: #cbd5e1;
+
+  /* ── Status: escalated ──────────────────────────────────── */
+  --status-escalated-bg:     #fff7ed;
+  --status-escalated-text:   #c2410c;
+  --status-escalated-border: #fdba74;
+}

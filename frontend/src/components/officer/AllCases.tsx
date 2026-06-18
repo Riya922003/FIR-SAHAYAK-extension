@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getAllStation } from '../../api/officer';
-import { INCIDENT_LABELS, STATUS_LABELS, STATUS_COLORS, type FIR, type FIRStatus } from '../../api/fir';
+import { INCIDENT_LABELS, STATUS_LABELS, type FIR, type FIRStatus } from '../../api/fir';
 
 interface Props {
   onViewFIR: (id: string) => void;
@@ -104,10 +104,7 @@ export default function AllCases({ onViewFIR }: Props) {
                   <td>{new Date(fir.incident_date).toLocaleDateString('en-IN')}</td>
                   <td>{new Date(fir.created_at).toLocaleDateString('en-IN')}</td>
                   <td>
-                    <span className="status-badge" style={{
-                      background: STATUS_COLORS[fir.status] + '1a',
-                      color: STATUS_COLORS[fir.status],
-                    }}>
+                    <span className={`status-badge status-badge--${fir.status}`}>
                       {STATUS_LABELS[fir.status]}
                     </span>
                   </td>
