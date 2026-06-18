@@ -32,7 +32,7 @@ _ORIGINS = settings.ALLOWED_ORIGINS if isinstance(settings.ALLOWED_ORIGINS, list
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ORIGINS,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_origin_regex=r"(http://(localhost|127\.0\.0\.1)(:\d+)?|https://fir-sahayak-extension[a-z0-9-]*\.vercel\.app)",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
