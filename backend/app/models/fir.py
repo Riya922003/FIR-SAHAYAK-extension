@@ -49,6 +49,11 @@ class FIR(SQLModel, table=True):
     # Witness
     witness_info: Optional[str] = None
 
+    # AI interview summary (generated during filing, visible to officer)
+    ai_interview_summary: Optional[str] = None
+    # AI-suggested IPC sections (citizen-accepted during filing)
+    suggested_ipc_sections: Optional[str] = None
+
     # Internal notes (officer only)
     officer_notes: Optional[str] = None
 

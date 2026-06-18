@@ -23,6 +23,8 @@ export interface FIR {
   complainant_address: string;
   complainant_phone: string;
   witness_info?: string;
+  ai_interview_summary?: string;
+  suggested_ipc_sections?: string;
   station_id: string;
   reapply_count: number;
   created_at: string;
@@ -62,6 +64,23 @@ export interface FileFIRPayload {
   complainant_address: string;
   complainant_phone: string;
   witness_info?: string;
+  ai_interview_summary?: string;
+  suggested_ipc_sections?: string;
+}
+
+export interface InterviewMessage {
+  role: 'model' | 'user';
+  text: string;
+}
+
+export interface InterviewResult {
+  question: string;
+  done: boolean;
+}
+
+export interface SummarizeResult {
+  summary: string;
+  ipc_sections: string;
 }
 
 const authH = (token: string) => ({
@@ -131,6 +150,34 @@ export async function getStations(token: string): Promise<PoliceStation[]> {
   const res = await fetch(`${API_URL}/api/v1/admin/stations`, { headers: authH(token) });
   if (!res.ok) return [];
   return res.json();
+}
+
+export async function conductInterview(
+  token: string,
+  payload: { incident_type: string; description: string; history: InterviewMessage[]; question_count: number }
+): Promise<InterviewResult> {
+  const res = await fetch(`${API_URL}/api/v1/ai/interview`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Interview request failed');
+  return data;
+}
+
+export async function summarizeInterview(
+  token: string,
+  payload: { incident_type: string; description: string; conversation: InterviewMessage[] }
+): Promise<SummarizeResult> {
+  const res = await fetch(`${API_URL}/api/v1/ai/summarize-interview`, {
+    method: 'POST',
+    headers: authH(token),
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Summarize request failed');
+  return data;
 }
 
 export async function getNearbyStations(address: string): Promise<PoliceStation[]> {

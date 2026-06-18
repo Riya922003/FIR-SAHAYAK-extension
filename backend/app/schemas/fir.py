@@ -18,6 +18,8 @@ class FIRCreateRequest(BaseModel):
     complainant_address: str
     complainant_phone: str = Field(pattern=r"^\d{10}$")
     witness_info: Optional[str] = None
+    ai_interview_summary: Optional[str] = None
+    suggested_ipc_sections: Optional[str] = None
 
 
 class FIRUpdateRequest(BaseModel):
@@ -76,6 +78,8 @@ class FIRResponse(BaseModel):
     complainant_address: str
     complainant_phone: str
     witness_info: Optional[str]
+    ai_interview_summary: Optional[str] = None
+    suggested_ipc_sections: Optional[str] = None
     acknowledged_at: Optional[datetime] = None
     reapply_count: int
     created_at: datetime

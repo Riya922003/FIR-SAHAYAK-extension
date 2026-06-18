@@ -72,6 +72,8 @@ async def file_fir(
         complainant_address=payload.complainant_address,
         complainant_phone=payload.complainant_phone,
         witness_info=payload.witness_info,
+        ai_interview_summary=payload.ai_interview_summary,
+        suggested_ipc_sections=payload.suggested_ipc_sections,
     )
     session.add(fir)
     await session.flush()  # get fir.id before logging

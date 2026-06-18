@@ -7,7 +7,12 @@ from app.core.database import get_session
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.fir import ChatLog
-from app.services.ai_service import get_ai_response, suggest_ipc_sections
+from app.services.ai_service import (
+    get_ai_response,
+    suggest_ipc_sections,
+    conduct_interview,
+    summarize_interview,
+)
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
@@ -34,21 +39,41 @@ class IPCSuggestResponse(BaseModel):
     suggestions: str
 
 
+class InterviewRequest(BaseModel):
+    incident_type: str
+    description: str
+    history: List[ChatMessage] = []
+    question_count: int = 0
+
+
+class InterviewResponse(BaseModel):
+    question: str
+    done: bool
+
+
+class SummarizeRequest(BaseModel):
+    incident_type: str
+    description: str
+    conversation: List[ChatMessage]
+
+
+class SummarizeResponse(BaseModel):
+    summary: str
+    ipc_sections: str
+
+
 @router.post("/chat", response_model=ChatResponse)
 async def chat(
     payload: ChatRequest,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
-    # Convert history to Gemini format
     gemini_history = [
         {"role": msg.role, "parts": [{"text": msg.text}]}
         for msg in payload.history
     ]
-
     reply = await get_ai_response(payload.message, gemini_history)
 
-    # Log conversation to DB (background-safe since session is already async)
     log = ChatLog(
         user_id=current_user.id,
         user_message=payload.message,
@@ -67,6 +92,39 @@ async def suggest_ipc(
 ):
     if len(payload.description) < 30:
         raise HTTPException(status_code=400, detail="Description too short for IPC suggestion")
-
     suggestions = await suggest_ipc_sections(payload.description)
     return IPCSuggestResponse(suggestions=suggestions)
+
+
+@router.post("/interview", response_model=InterviewResponse)
+async def interview(
+    payload: InterviewRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Conduct one turn of the AI-guided FIR interview. Returns the next question or done=True."""
+    gemini_history = [
+        {"role": msg.role, "parts": [{"text": msg.text}]}
+        for msg in payload.history
+    ]
+    result = await conduct_interview(
+        incident_type=payload.incident_type,
+        description=payload.description,
+        history=gemini_history,
+        question_num=payload.question_count,
+    )
+    return InterviewResponse(**result)
+
+
+@router.post("/summarize-interview", response_model=SummarizeResponse)
+async def summarize_interview_endpoint(
+    payload: SummarizeRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Generate a structured officer summary + IPC suggestions from the completed interview."""
+    conversation = [{"role": m.role, "text": m.text} for m in payload.conversation]
+    result = await summarize_interview(
+        incident_type=payload.incident_type,
+        description=payload.description,
+        conversation=conversation,
+    )
+    return SummarizeResponse(**result)

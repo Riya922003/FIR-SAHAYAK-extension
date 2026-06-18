@@ -112,6 +112,24 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
+      {/* AI Interview Summary */}
+      {fir.ai_interview_summary && (
+        <div className="dash-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+          <h2 className="section-label" style={{ color: '#1d4ed8' }}>AI Interview Summary</h2>
+          <p style={{ fontSize: '0.875rem', color: '#1e3a5f', lineHeight: 1.7, margin: 0 }}>
+            {fir.ai_interview_summary}
+          </p>
+          {fir.suggested_ipc_sections && (
+            <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid #bfdbfe' }}>
+              <div className="section-label" style={{ color: '#1d4ed8', marginBottom: '0.5rem' }}>Citizen-Accepted IPC Sections</div>
+              <div style={{ fontSize: '0.875rem', color: '#1e3a5f', whiteSpace: 'pre-line' }}>
+                {fir.suggested_ipc_sections}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Status history */}
       <div className="dash-card">
         <h2 className="section-label">Status Timeline</h2>
