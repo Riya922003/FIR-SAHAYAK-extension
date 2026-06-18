@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { User } from '../api/auth';
+import { configureClient, API_URL } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -43,14 +44,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('fir_token');
     localStorage.removeItem('fir_refresh_token');
     localStorage.removeItem('fir_user');
     window.location.replace('/');
-  };
+  }, []);
+
+  const silentRefresh = useCallback(async (): Promise<string | null> => {
+    const rt = localStorage.getItem('fir_refresh_token');
+    if (!rt) return null;
+    try {
+      const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rt }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      setToken(data.access_token);
+      localStorage.setItem('fir_token', data.access_token);
+      localStorage.setItem('fir_refresh_token', data.refresh_token);
+      return data.access_token as string;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  useEffect(() => {
+    configureClient(silentRefresh, logout);
+  }, [silentRefresh, logout]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, updateUser, logout, isAuthenticated: !!token }}>

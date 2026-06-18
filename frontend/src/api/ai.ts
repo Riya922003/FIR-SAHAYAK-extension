@@ -1,9 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-const authH = (token: string) => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${token}`,
-});
+import { apiFetch } from './client';
 
 export interface ChatMsg {
   role: 'user' | 'model';
@@ -15,9 +10,8 @@ export async function sendChatMessage(
   message: string,
   history: ChatMsg[],
 ): Promise<string> {
-  const res = await fetch(`${API_URL}/api/v1/ai/chat`, {
+  const res = await apiFetch(token, '/api/v1/ai/chat', {
     method: 'POST',
-    headers: authH(token),
     body: JSON.stringify({
       message,
       history: history.map(m => ({ role: m.role, text: m.text })),

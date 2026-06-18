@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { apiFetch, API_URL } from './client';
 
 export type FIRStatus =
   | 'draft' | 'submitted' | 'acknowledged'
@@ -83,27 +83,21 @@ export interface SummarizeResult {
   ipc_sections: string;
 }
 
-const authH = (token: string) => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${token}`,
-});
-
 export async function getMyFIRs(token: string): Promise<FIR[]> {
-  const res = await fetch(`${API_URL}/api/v1/fir/my`, { headers: authH(token) });
+  const res = await apiFetch(token, '/api/v1/fir/my');
   if (!res.ok) throw new Error('Failed to fetch FIRs');
   return res.json();
 }
 
 export async function getFIRDetail(token: string, id: string): Promise<FIRDetail> {
-  const res = await fetch(`${API_URL}/api/v1/fir/${id}`, { headers: authH(token) });
+  const res = await apiFetch(token, `/api/v1/fir/${id}`);
   if (!res.ok) throw new Error('Failed to fetch FIR detail');
   return res.json();
 }
 
 export async function fileFIR(token: string, payload: FileFIRPayload): Promise<FIR> {
-  const res = await fetch(`${API_URL}/api/v1/fir/`, {   // trailing slash required
+  const res = await apiFetch(token, '/api/v1/fir/', {
     method: 'POST',
-    headers: authH(token),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -120,19 +114,15 @@ export async function fileFIR(token: string, payload: FileFIRPayload): Promise<F
 }
 
 export async function cancelFIR(token: string, id: string): Promise<FIR> {
-  const res = await fetch(`${API_URL}/api/v1/fir/${id}/cancel`, {
-    method: 'POST',
-    headers: authH(token),
-  });
+  const res = await apiFetch(token, `/api/v1/fir/${id}/cancel`, { method: 'POST' });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || 'Failed to cancel FIR');
   return data;
 }
 
 export async function escalateFIR(token: string, id: string, reason: string): Promise<FIR> {
-  const res = await fetch(`${API_URL}/api/v1/fir/${id}/escalate`, {
+  const res = await apiFetch(token, `/api/v1/fir/${id}/escalate`, {
     method: 'POST',
-    headers: authH(token),
     body: JSON.stringify({ reason }),
   });
   const data = await res.json();
@@ -147,7 +137,7 @@ export async function getStationDistricts(): Promise<string[]> {
 }
 
 export async function getStations(token: string): Promise<PoliceStation[]> {
-  const res = await fetch(`${API_URL}/api/v1/admin/stations`, { headers: authH(token) });
+  const res = await apiFetch(token, '/api/v1/admin/stations');
   if (!res.ok) return [];
   return res.json();
 }
@@ -156,9 +146,8 @@ export async function conductInterview(
   token: string,
   payload: { incident_type: string; description: string; history: InterviewMessage[]; question_count: number }
 ): Promise<InterviewResult> {
-  const res = await fetch(`${API_URL}/api/v1/ai/interview`, {
+  const res = await apiFetch(token, '/api/v1/ai/interview', {
     method: 'POST',
-    headers: authH(token),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
@@ -170,9 +159,8 @@ export async function summarizeInterview(
   token: string,
   payload: { incident_type: string; description: string; conversation: InterviewMessage[] }
 ): Promise<SummarizeResult> {
-  const res = await fetch(`${API_URL}/api/v1/ai/summarize-interview`, {
+  const res = await apiFetch(token, '/api/v1/ai/summarize-interview', {
     method: 'POST',
-    headers: authH(token),
     body: JSON.stringify(payload),
   });
   const data = await res.json();
