@@ -1,4 +1,5 @@
 import httpx
+from fastapi import HTTPException
 from app.core.config import settings
 
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
@@ -51,15 +52,29 @@ async def _call_gemini(contents: list[dict], system_prompt: str = CHAT_SYSTEM) -
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
     }
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(
-            GEMINI_URL,
-            params={"key": settings.GOOGLE_API_KEY},
-            json=payload,
+    try:
+        async with httpx.AsyncClient(timeout=45.0) as client:
+            response = await client.post(
+                GEMINI_URL,
+                params={"key": settings.GOOGLE_API_KEY},
+                json=payload,
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="AI service timed out. Please try again.")
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"AI service unreachable: {exc}")
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI service error ({response.status_code}): {response.text[:200]}",
         )
-        response.raise_for_status()
+
+    try:
         data = response.json()
         return data["candidates"][0]["content"]["parts"][0]["text"]
+    except (KeyError, IndexError) as exc:
+        raise HTTPException(status_code=502, detail=f"Unexpected AI response format: {exc}")
 
 
 async def get_ai_response(user_message: str, history: list[dict]) -> str:
