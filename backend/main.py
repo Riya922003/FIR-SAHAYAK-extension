@@ -27,13 +27,10 @@ app = FastAPI(
 # ── CORS ──────────────────────────────────────────────────────────────────────
 # Allow all localhost/127.0.0.1 ports for local development.
 # In production, set ALLOWED_ORIGINS in .env and remove allow_origin_regex.
-_ORIGINS = settings.ALLOWED_ORIGINS if isinstance(settings.ALLOWED_ORIGINS, list) else []
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=_ORIGINS,
-    allow_origin_regex=r"(http://(localhost|127\.0\.0\.1)(:\d+)?|https://fir-sahayak-extension[a-z0-9-]*\.vercel\.app)",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -60,4 +57,4 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "ok"}
+    return {"status": "ok", "cors": "open", "build": "fd299ed-plus"}
