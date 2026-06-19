@@ -2,7 +2,7 @@ import httpx
 from fastapi import HTTPException
 from app.core.config import settings
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent"
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
 CHAT_SYSTEM = """You are a helpful legal assistant for FIR Sahayak, an online FIR filing platform in India.
 Your role is to:

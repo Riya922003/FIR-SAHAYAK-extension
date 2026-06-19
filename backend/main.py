@@ -1,18 +1,30 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import init_db, engine
 from app.routers import auth, fir, ai, admin, authority
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Create tables (no-op if already exist)
     await init_db()
+    # Add new columns if they don't exist yet (safe to run every startup)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(
+                "ALTER TABLE firs ADD COLUMN IF NOT EXISTS ai_interview_summary TEXT"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE firs ADD COLUMN IF NOT EXISTS suggested_ipc_sections VARCHAR"
+            ))
+        print("[OK] Schema columns verified.")
+    except Exception as e:
+        print(f"[WARNING] Schema migration skipped: {e}")
     yield
-    # Shutdown (add cleanup here if needed)
 
 
 app = FastAPI(
