@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # AI (Gemini)
-    GOOGLE_API_KEY: str
+    # AI (Groq — free tier, generous limits)
+    GROQ_API_KEY: str
 
     # Maps (Places API for police station search)
     GOOGLE_MAPS_API_KEY: str = ""

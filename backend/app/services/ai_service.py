@@ -2,7 +2,8 @@ import httpx
 from fastapi import HTTPException
 from app.core.config import settings
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
 CHAT_SYSTEM = """You are a helpful legal assistant for FIR Sahayak, an online FIR filing platform in India.
 Your role is to:
@@ -47,18 +48,20 @@ INCIDENT_FOCUS = {
 }
 
 
-async def _call_gemini(contents: list[dict], system_prompt: str = CHAT_SYSTEM) -> str:
+async def _call_groq(messages: list[dict]) -> str:
+    """Call Groq's OpenAI-compatible chat API."""
     payload = {
-        "system_instruction": {"parts": [{"text": system_prompt}]},
-        "contents": contents,
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0.7,
+    }
+    headers = {
+        "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+        "Content-Type": "application/json",
     }
     try:
         async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(
-                GEMINI_URL,
-                params={"key": settings.GOOGLE_API_KEY},
-                json=payload,
-            )
+            response = await client.post(GROQ_URL, json=payload, headers=headers)
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="AI service timed out. Please try again.")
     except httpx.RequestError as exc:
@@ -67,19 +70,34 @@ async def _call_gemini(contents: list[dict], system_prompt: str = CHAT_SYSTEM) -
     if response.status_code != 200:
         raise HTTPException(
             status_code=502,
-            detail=f"AI service error ({response.status_code}): {response.text[:200]}",
+            detail=f"AI service error ({response.status_code}): {response.text[:300]}",
         )
 
     try:
-        data = response.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"]
+        return response.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:
         raise HTTPException(status_code=502, detail=f"Unexpected AI response format: {exc}")
 
 
+def _gemini_to_openai(history: list[dict]) -> list[dict]:
+    """Convert Gemini-format history [{role, parts}] to OpenAI format [{role, content}]."""
+    result = []
+    for msg in history:
+        role = "assistant" if msg.get("role") == "model" else msg.get("role", "user")
+        # Gemini format: parts=[{text: ...}]
+        if "parts" in msg:
+            content = msg["parts"][0].get("text", "")
+        else:
+            content = msg.get("text", "")
+        result.append({"role": role, "content": content})
+    return result
+
+
 async def get_ai_response(user_message: str, history: list[dict]) -> str:
-    contents = history + [{"role": "user", "parts": [{"text": user_message}]}]
-    return await _call_gemini(contents)
+    messages = [{"role": "system", "content": CHAT_SYSTEM}]
+    messages += _gemini_to_openai(history)
+    messages.append({"role": "user", "content": user_message})
+    return await _call_groq(messages)
 
 
 async def suggest_ipc_sections(description: str) -> str:
@@ -91,8 +109,11 @@ Complaint: {description}
 Format your response as:
 Section X - [brief description]
 Section Y - [brief description]"""
-    contents = [{"role": "user", "parts": [{"text": prompt}]}]
-    return await _call_gemini(contents)
+    messages = [
+        {"role": "system", "content": "You are a legal expert specializing in Indian criminal law."},
+        {"role": "user", "content": prompt},
+    ]
+    return await _call_groq(messages)
 
 
 async def conduct_interview(
@@ -101,11 +122,6 @@ async def conduct_interview(
     history: list[dict],
     question_num: int,
 ) -> dict:
-    """
-    Ask the next interview question.
-    history: Gemini-format [{role, parts}] of all prior Q&As.
-    Returns {"question": str, "done": bool}
-    """
     if question_num >= 10:
         return {"question": "", "done": True}
 
@@ -117,13 +133,14 @@ async def conduct_interview(
         focus=focus,
     )
 
-    # Append a trigger so Gemini produces the next question
-    contents = history + [{
+    messages = [{"role": "system", "content": system}]
+    messages += _gemini_to_openai(history)
+    messages.append({
         "role": "user",
-        "parts": [{"text": "Please ask your next question, or respond ###DONE### if you have enough information."}],
-    }]
+        "content": "Please ask your next question, or respond ###DONE### if you have enough information.",
+    })
 
-    response = await _call_gemini(contents, system_prompt=system)
+    response = await _call_groq(messages)
 
     if "###DONE###" in response:
         clean = response.replace("###DONE###", "").strip()
@@ -135,12 +152,8 @@ async def conduct_interview(
 async def summarize_interview(
     incident_type: str,
     description: str,
-    conversation: list[dict],  # [{"role": "model"|"user", "text": "..."}]
+    conversation: list[dict],
 ) -> dict:
-    """
-    Generate an officer-facing structured summary + IPC suggestions from the interview.
-    Returns {"summary": str, "ipc_sections": str}
-    """
     qa_text = "\n".join(
         f"{'Interviewer' if m['role'] == 'model' else 'Complainant'}: {m['text']}"
         for m in conversation
@@ -162,8 +175,11 @@ SUMMARY:
 IPC_SECTIONS:
 [List 3-5 IPC sections most applicable to the described facts. Format each as: Section X - Section Name]"""
 
-    contents = [{"role": "user", "parts": [{"text": prompt}]}]
-    response = await _call_gemini(contents)
+    messages = [
+        {"role": "system", "content": "You are a senior police officer writing official FIR documentation."},
+        {"role": "user", "content": prompt},
+    ]
+    response = await _call_groq(messages)
 
     summary = ""
     ipc = ""
