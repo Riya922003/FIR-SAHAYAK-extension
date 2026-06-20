@@ -85,6 +85,7 @@ export default function OfficerManagement() {
                   {stationOfficers.length} officer{stationOfficers.length !== 1 ? 's' : ''}
                 </span>
               </div>
+              <div className="table-scroll-wrap">
               <table className="fir-table">
                 <thead>
                   <tr>
@@ -116,6 +117,7 @@ export default function OfficerManagement() {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
           ))}
         </div>

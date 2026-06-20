@@ -70,6 +70,7 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
           )}
         </div>
       ) : (
+        <div className="table-scroll-wrap">
         <table className="fir-table">
           <thead>
             <tr>
@@ -104,6 +105,7 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

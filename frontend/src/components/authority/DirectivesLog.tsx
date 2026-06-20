@@ -43,6 +43,7 @@ export default function DirectivesLog() {
         </div>
       ) : (
         <div className="dash-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="table-scroll-wrap">
           <table className="fir-table">
             <thead>
               <tr>
@@ -77,6 +78,7 @@ export default function DirectivesLog() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

@@ -80,6 +80,7 @@ export default function AllCases({ onViewFIR }: Props) {
         </div>
       ) : (
         <div className="dash-card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="table-scroll-wrap">
           <table className="fir-table">
             <thead>
               <tr>
@@ -112,6 +113,7 @@ export default function AllCases({ onViewFIR }: Props) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

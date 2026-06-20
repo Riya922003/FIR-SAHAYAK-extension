@@ -36,6 +36,7 @@ export default function StationHealthList({ stations, onDrillIn }: Props) {
         </p>
       </div>
 
+      <div className="table-scroll-wrap station-health-wrap">
       <table className="fir-table">
         <thead>
           <tr>
@@ -64,7 +65,7 @@ export default function StationHealthList({ stations, onDrillIn }: Props) {
                   <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '0.875rem' }}>
                     {st.name}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
+                  <div className="station-addr" style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.1rem' }}>
                     {st.address}
                   </div>
                 </td>
@@ -93,6 +94,7 @@ export default function StationHealthList({ stations, onDrillIn }: Props) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

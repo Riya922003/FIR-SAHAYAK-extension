@@ -1738,4 +1738,25 @@
   .filter-tab { padding: 0.3rem 0.5rem 0.45rem; font-size: var(--text-xs); }
   .ov-timeline { overflow-x: auto; }
   .fir-steps { overflow-x: auto; }
+  .fir-step-item { flex-shrink: 0; }
+  .fir-step-conn { flex-shrink: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TABLE SCROLL WRAPPER — horizontal scroll on mobile
+   ═══════════════════════════════════════════════════════════════ */
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 768px) {
+  .table-scroll-wrap .fir-table { min-width: 520px; }
+  /* station health table needs more room for all columns */
+  .station-health-wrap .fir-table { min-width: 580px; }
+  /* hide full address in station table — name alone is enough */
+  .station-addr { display: none; }
+  /* ensure fir-steps items don't compress */
+  .fir-step-item { flex-shrink: 0; }
+  .fir-step-conn { flex-shrink: 0; }
 }
