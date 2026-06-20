@@ -41,6 +41,7 @@ export default function CitizenDashboard() {
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const fetchFIRs = useCallback(async () => {
     if (!token) return;
@@ -72,12 +73,19 @@ export default function CitizenDashboard() {
   const navigate = (v: View) => {
     setView(v);
     if (v !== 'detail') setSelectedFirId(null);
+    setMobileOpen(false);
   };
 
   return (
     <div className="dashboard-layout">
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay${mobileOpen ? ' visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
       {/* ── Sidebar ── */}
-      <aside className={`dashboard-sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <aside className={`dashboard-sidebar${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' sidebar-mobile-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             {!collapsed && (
@@ -142,6 +150,15 @@ export default function CitizenDashboard() {
 
       {/* ── Main content ── */}
       <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
+
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <button className="mobile-menu-btn" onClick={() => setMobileOpen(o => !o)} aria-label="Open menu">
+            ☰
+          </button>
+          <span className="mobile-topbar-brand">FIR Sahayak</span>
+          <span style={{ width: 36 }} />
+        </div>
 
         {successMsg && (
           <div style={{

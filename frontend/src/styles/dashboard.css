@@ -1618,3 +1618,124 @@
   .ov-fir-number   { font-size: var(--text-xl); }
   .interview-input-row { flex-direction: column; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE SIDEBAR OVERLAY + TOP BAR
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Dims the main content when the mobile sidebar is open */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 100;
+}
+
+/* Mobile top bar — hidden on desktop */
+.mobile-topbar {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.7rem 1rem;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--sidebar-border);
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  flex-shrink: 0;
+}
+
+.mobile-topbar-brand {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--sidebar-text);
+  letter-spacing: var(--tracking-tight);
+}
+
+.mobile-menu-btn {
+  background: none;
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-sm);
+  color: var(--sidebar-text-muted);
+  cursor: pointer;
+  padding: 0.3rem 0.55rem;
+  font-size: 1.05rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.mobile-menu-btn:hover { color: var(--sidebar-text); border-color: var(--border-strong); }
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — MOBILE (≤ 768px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Sidebar slides in from the left as a drawer */
+  .dashboard-sidebar {
+    left: -240px;
+    width: 230px;
+    transition: left 0.25s ease, box-shadow 0.25s ease;
+    box-shadow: none;
+    z-index: 150;
+  }
+  .dashboard-sidebar.sidebar-mobile-open {
+    left: 0;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Overlay: show when sidebar is open */
+  .sidebar-overlay.visible { display: block; }
+
+  /* Main: fill full width */
+  .dashboard-main,
+  .dashboard-main.sidebar-collapsed {
+    margin-left: 0 !important;
+    padding: 1rem;
+  }
+
+  /* Mobile topbar: visible */
+  .mobile-topbar {
+    display: flex;
+    /* bleed to edges of the 1rem padding from dashboard-main */
+    margin: -1rem -1rem 1rem;
+    width: calc(100% + 2rem);
+  }
+
+  /* Stat cards: 2 columns */
+  .stat-cards { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+
+  /* AI chat panel: use available width */
+  .ai-chat-panel {
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-width: none;
+    bottom: 5rem;
+  }
+  .ai-chat-fab { bottom: 1.25rem; right: 1rem; }
+
+  /* Dash header spacing */
+  .dash-header { margin-bottom: 1rem; }
+  .dash-header h1 { font-size: var(--text-xl); }
+
+  /* AI help banner: stack on mobile */
+  .ai-help-banner { flex-direction: column; align-items: flex-start; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — SMALL MOBILE (≤ 480px)
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .stat-cards { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+  .stat-value { font-size: 1.5rem; }
+  .dashboard-main,
+  .dashboard-main.sidebar-collapsed { padding: 0.75rem; }
+  .mobile-topbar { margin: -0.75rem -0.75rem 0.75rem; width: calc(100% + 1.5rem); }
+  .dash-card { padding: 1rem; }
+  .filter-tab { padding: 0.3rem 0.5rem 0.45rem; font-size: var(--text-xs); }
+  .ov-timeline { overflow-x: auto; }
+  .fir-steps { overflow-x: auto; }
+}

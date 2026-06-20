@@ -477,13 +477,11 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .officer-stats {
-    grid-template-columns: repeat(3, 1fr);
-  }
+  .officer-stats { grid-template-columns: repeat(3, 1fr); }
 }
-
 @media (max-width: 600px) {
-  .officer-stats {
-    grid-template-columns: 1fr 1fr;
-  }
+  .officer-stats { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 400px) {
+  .officer-stats { grid-template-columns: 1fr; }
 }

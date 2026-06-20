@@ -17,6 +17,7 @@ export default function OfficerDashboard() {
   const [detailSource, setDetailSource] = useState<View>('queue');
   const [refreshKey, setRefreshKey] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdmin = user?.role === 'station_admin' || user?.role === 'higher_authority';
 
@@ -38,10 +39,18 @@ export default function OfficerDashboard() {
 
   const isActive = (v: View) => view === v || (view === 'detail' && detailSource === v);
 
+  const navTo = (v: View) => { setView(v); setMobileOpen(false); };
+
   return (
     <div className="dashboard-layout">
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay${mobileOpen ? ' visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
       {/* Sidebar */}
-      <aside className={`dashboard-sidebar officer-sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <aside className={`dashboard-sidebar officer-sidebar${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' sidebar-mobile-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             {!collapsed && (
@@ -63,7 +72,7 @@ export default function OfficerDashboard() {
         <nav className="sidebar-nav">
           <button
             className={`sidebar-item${isActive('queue') ? ' active officer-active' : ''}`}
-            onClick={() => setView('queue')}
+            onClick={() => navTo('queue')}
             title={collapsed ? 'Unassigned Queue' : undefined}
           >
             <span className="item-icon">
@@ -76,7 +85,7 @@ export default function OfficerDashboard() {
           </button>
           <button
             className={`sidebar-item${isActive('my-cases') ? ' active officer-active' : ''}`}
-            onClick={() => setView('my-cases')}
+            onClick={() => navTo('my-cases')}
             title={collapsed ? 'My Cases' : undefined}
           >
             <span className="item-icon">
@@ -89,7 +98,7 @@ export default function OfficerDashboard() {
           {isAdmin && (
             <button
               className={`sidebar-item${isActive('all-cases') ? ' active officer-active' : ''}`}
-              onClick={() => setView('all-cases')}
+              onClick={() => navTo('all-cases')}
               title={collapsed ? 'All Station Cases' : undefined}
             >
               <span className="item-icon">
@@ -105,7 +114,7 @@ export default function OfficerDashboard() {
 
           <button
             className={`sidebar-item${view === 'profile' ? ' active officer-active' : ''}`}
-            onClick={() => setView('profile')}
+            onClick={() => navTo('profile')}
             title={collapsed ? 'My Profile' : undefined}
           >
             <span className="item-icon">
@@ -134,6 +143,14 @@ export default function OfficerDashboard() {
 
       {/* Main content */}
       <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <button className="mobile-menu-btn" onClick={() => setMobileOpen(o => !o)} aria-label="Open menu">
+            ☰
+          </button>
+          <span className="mobile-topbar-brand">FIR Sahayak</span>
+          <span style={{ width: 36 }} />
+        </div>
         {view === 'queue' && (
           <UnassignedQueue key={refreshKey} onViewFIR={id => goToDetail(id, 'queue')} />
         )}

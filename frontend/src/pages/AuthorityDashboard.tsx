@@ -22,6 +22,7 @@ export default function AuthorityDashboard() {
   const { user, token, logout } = useAuth();
   const [view, setView] = useState<View>('dashboard');
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   // District dashboard data
   const [stats, setStats] = useState<DistrictStats | null>(null);
@@ -90,14 +91,21 @@ export default function AuthorityDashboard() {
     setSelectedStation(null);
     setSelectedFirId(null);
     setView(v);
+    setMobileOpen(false);
   };
 
   const isActive = (...views: View[]) => views.includes(view);
 
   return (
     <div className="dashboard-layout">
+      {/* Mobile overlay */}
+      <div
+        className={`sidebar-overlay${mobileOpen ? ' visible' : ''}`}
+        onClick={() => setMobileOpen(false)}
+      />
+
       {/* ── Sidebar ── */}
-      <aside className={`dashboard-sidebar authority-sidebar${collapsed ? ' sidebar-collapsed' : ''}`}>
+      <aside className={`dashboard-sidebar authority-sidebar${collapsed ? ' sidebar-collapsed' : ''}${mobileOpen ? ' sidebar-mobile-open' : ''}`}>
         <div className="sidebar-brand">
           <div className="sidebar-brand-row">
             {!collapsed && (
@@ -195,6 +203,15 @@ export default function AuthorityDashboard() {
 
       {/* ── Main content ── */}
       <main className={`dashboard-main${collapsed ? ' sidebar-collapsed' : ''}`}>
+
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <button className="mobile-menu-btn" onClick={() => setMobileOpen(o => !o)} aria-label="Open menu">
+            ☰
+          </button>
+          <span className="mobile-topbar-brand">FIR Sahayak</span>
+          <span style={{ width: 36 }} />
+        </div>
 
         {/* Dashboard */}
         {view === 'dashboard' && (
