@@ -1,22 +1,28 @@
 import uuid
 import logging
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, func
-from typing import List, Optional
 from pydantic import BaseModel
 
-from app.core.config import settings
-
-logger = logging.getLogger(__name__)
-from app.core.database import get_session
 from app.core.security import require_roles
 from app.models.user import User
-from app.models.fir import FIR, PoliceStation, Escalation
+from app.models.fir import PoliceStation
 from app.models.enums import UserRole, FIRStatus, EscalationStatus
+from app.repositories import (
+    get_fir_repo,
+    get_user_repo,
+    get_station_repo,
+    get_escalation_repo,
+)
+from app.repositories.fir_repository import FIRRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.station_repository import StationRepository
+from app.repositories.escalation_repository import EscalationRepository
 from app.schemas.fir import FIRResponse, EscalationResponse
 from app.schemas.auth import UserResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -54,29 +60,18 @@ class DashboardStats(BaseModel):
 
 @router.get("/stats", response_model=DashboardStats)
 async def get_dashboard_stats(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     _: User = Depends(require_roles(UserRole.STATION_ADMIN, UserRole.HIGHER_AUTHORITY)),
 ):
-    total_firs = (await session.exec(select(func.count(FIR.id)))).one()
-    pending = (await session.exec(
-        select(func.count(FIR.id)).where(FIR.status == FIRStatus.SUBMITTED)
-    )).one()
-    resolved = (await session.exec(
-        select(func.count(FIR.id)).where(FIR.status == FIRStatus.RESOLVED)
-    )).one()
-    escalated = (await session.exec(
-        select(func.count(FIR.id)).where(FIR.status == FIRStatus.ESCALATED)
-    )).one()
-    total_users = (await session.exec(select(func.count(User.id)))).one()
-    total_stations = (await session.exec(select(func.count(PoliceStation.id)))).one()
-
     return DashboardStats(
-        total_firs=total_firs,
-        pending_firs=pending,
-        resolved_firs=resolved,
-        escalated_firs=escalated,
-        total_users=total_users,
-        total_stations=total_stations,
+        total_firs=await fir_repo.count_total(),
+        pending_firs=await fir_repo.count_by_status(FIRStatus.SUBMITTED),
+        resolved_firs=await fir_repo.count_by_status(FIRStatus.RESOLVED),
+        escalated_firs=await fir_repo.count_by_status(FIRStatus.ESCALATED),
+        total_users=await user_repo.count_all(),
+        total_stations=await station_repo.count_all(),
     )
 
 
@@ -85,40 +80,32 @@ async def get_dashboard_stats(
 @router.post("/stations", response_model=StationResponse, status_code=201)
 async def create_station(
     payload: StationCreateRequest,
-    session: AsyncSession = Depends(get_session),
+    station_repo: StationRepository = Depends(get_station_repo),
     _: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     station = PoliceStation(**payload.model_dump())
-    session.add(station)
-    await session.commit()
-    await session.refresh(station)
-    return station
+    return await station_repo.create(station)
 
 
 @router.get("/stations", response_model=List[StationResponse])
 async def list_stations(
-    session: AsyncSession = Depends(get_session),
+    station_repo: StationRepository = Depends(get_station_repo),
 ):
-    result = await session.exec(select(PoliceStation))
-    return result.all()
+    return await station_repo.get_all()
 
 
 @router.get("/stations/districts", response_model=List[str])
-async def list_station_districts(session: AsyncSession = Depends(get_session)):
+async def list_station_districts(
+    station_repo: StationRepository = Depends(get_station_repo),
+):
     """Returns distinct district values that actually exist in the stations table."""
-    rows = (await session.exec(
-        select(PoliceStation.district)
-        .distinct()
-        .where(PoliceStation.district != "Unknown")
-        .order_by(PoliceStation.district)
-    )).all()
-    return [r for r in rows if r and r.strip()]
+    return await station_repo.get_districts()
 
 
 @router.get("/stations/nearby", response_model=List[StationResponse])
 async def stations_nearby(
     address: str = Query(..., min_length=5, description="Incident address"),
-    session: AsyncSession = Depends(get_session),
+    station_repo: StationRepository = Depends(get_station_repo),
 ):
     """
     Public endpoint. Uses OpenStreetMap (Nominatim + Overpass) to find police
@@ -126,7 +113,12 @@ async def stations_nearby(
     Upserts results into the local DB and returns them with real DB IDs.
     """
     try:
-        from app.services.places import geocode_nominatim, overpass_police_stations, nominatim_police_stations
+        from app.services.places import (
+            geocode_nominatim,
+            overpass_police_stations,
+            nominatim_police_stations,
+            _distance_km,
+        )
 
         location = await geocode_nominatim(address)
         if not location:
@@ -148,27 +140,19 @@ async def stations_nearby(
             )
 
         # Prioritise stations in the same state as the searched address, then by distance
-        from app.services.places import _distance_km
         search_state = location["state"].lower()
         places.sort(key=lambda p: (
             0 if p.get("state", "").lower() == search_state else 1,
             _distance_km(location["lat"], location["lng"], p["lat"], p["lng"]),
         ))
-        places = places[:8]  # return at most 8 options
+        places = places[:8]
 
         results: list[StationResponse] = []
         for p in places:
-            # Use the station's own state/district from OSM/Nominatim; fall back to
-            # the geocoded location only when the station has no address tags.
             station_state    = p.get("state")    or location["state"]
             station_district = p.get("district") or location["district"] or "Unknown"
 
-            existing = (
-                await session.exec(
-                    select(PoliceStation).where(PoliceStation.name == p["name"])
-                )
-            ).first()
-
+            existing = await station_repo.get_by_name(p["name"])
             if existing:
                 results.append(StationResponse(
                     id=str(existing.id),
@@ -188,8 +172,7 @@ async def stations_nearby(
                     address=p["address"] or address,
                     phone=None,
                 )
-                session.add(station)
-                await session.flush()
+                await station_repo.upsert_from_osm(station)
                 results.append(StationResponse(
                     id=new_id,
                     name=p["name"],
@@ -199,7 +182,6 @@ async def stations_nearby(
                     phone=None,
                 ))
 
-        await session.commit()
         return results
 
     except HTTPException:
@@ -212,9 +194,9 @@ async def stations_nearby(
 @router.get("/stations/{station_id}", response_model=StationResponse)
 async def get_station(
     station_id: str,
-    session: AsyncSession = Depends(get_session),
+    station_repo: StationRepository = Depends(get_station_repo),
 ):
-    station = await session.get(PoliceStation, station_id)
+    station = await station_repo.get_by_id(station_id)
     if not station:
         raise HTTPException(status_code=404, detail="Station not found")
     return station
@@ -224,30 +206,25 @@ async def get_station(
 
 @router.get("/users", response_model=List[UserResponse])
 async def list_users(
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
     _: User = Depends(require_roles(UserRole.STATION_ADMIN, UserRole.HIGHER_AUTHORITY)),
     role: Optional[UserRole] = Query(default=None),
 ):
-    query = select(User)
-    if role:
-        query = query.where(User.role == role)
-    result = await session.exec(query)
-    return result.all()
+    return await user_repo.get_all(role)
 
 
 @router.patch("/users/{user_id}/role")
 async def update_user_role(
     user_id: str,
     new_role: UserRole,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
     _: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
-    user = await session.get(User, user_id)
+    user = await user_repo.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.role = new_role
-    session.add(user)
-    await session.commit()
+    await user_repo.update(user)
     return {"message": f"Role updated to {new_role}"}
 
 
@@ -255,31 +232,29 @@ async def update_user_role(
 async def assign_user_station(
     user_id: str,
     station_id: Optional[str] = None,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
     _: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY, UserRole.STATION_ADMIN)),
 ):
     """Assign or unassign an officer to a police station (pass station_id=None to unassign)."""
-    user = await session.get(User, user_id)
+    user = await user_repo.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.station_id = station_id
-    session.add(user)
-    await session.commit()
+    await user_repo.update(user)
     return {"message": "Station assignment updated"}
 
 
 @router.patch("/users/{user_id}/deactivate")
 async def deactivate_user(
     user_id: str,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
     _: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
-    user = await session.get(User, user_id)
+    user = await user_repo.get_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     user.is_active = False
-    session.add(user)
-    await session.commit()
+    await user_repo.update(user)
     return {"message": "User deactivated"}
 
 
@@ -287,12 +262,8 @@ async def deactivate_user(
 
 @router.get("/escalations", response_model=List[EscalationResponse])
 async def get_escalations(
-    session: AsyncSession = Depends(get_session),
+    escalation_repo: EscalationRepository = Depends(get_escalation_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
     status_filter: Optional[EscalationStatus] = Query(default=None),
 ):
-    query = select(Escalation).where(Escalation.escalated_to == current_user.id)
-    if status_filter:
-        query = query.where(Escalation.status == status_filter)
-    result = await session.exec(query.order_by(Escalation.created_at.desc()))
-    return result.all()
+    return await escalation_repo.get_by_authority(current_user.id, status_filter)

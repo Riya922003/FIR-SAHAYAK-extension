@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
-from typing import List, Optional
 from datetime import datetime
+from typing import List, Optional
 
-from app.core.database import get_session
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
+from app.core.limiter import limiter
 from app.core.security import get_current_user, require_roles
 from app.models.user import User
 from app.models.fir import FIR, FIRStatusHistory
 from app.models.enums import FIRStatus, UserRole
+from app.repositories import get_fir_repo, get_history_repo
+from app.repositories.fir_repository import FIRRepository
+from app.repositories.status_history_repository import StatusHistoryRepository
 from app.schemas.fir import (
     FIRCreateRequest,
     FIRUpdateRequest,
@@ -22,44 +24,27 @@ from app.schemas.fir import (
 
 router = APIRouter(prefix="/fir", tags=["FIR"])
 
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-async def generate_fir_number(session: AsyncSession) -> str:
-    year = datetime.utcnow().year
-    result = await session.exec(select(FIR))
-    count = len(result.all()) + 1
-    return f"FIR-{year}-{count:05d}"
-
-
-async def log_status_change(
-    session: AsyncSession,
-    fir_id: str,
-    previous: Optional[FIRStatus],
-    new: FIRStatus,
-    changed_by: str,
-    notes: Optional[str] = None,
-):
-    history = FIRStatusHistory(
-        fir_id=fir_id,
-        previous_status=previous,
-        new_status=new,
-        changed_by=changed_by,
-        notes=notes,
-    )
-    session.add(history)
+# Valid status transitions an officer can make (enforced server-side)
+VALID_TRANSITIONS: dict = {
+    FIRStatus.ACKNOWLEDGED: [FIRStatus.UNDER_INVESTIGATION],
+    FIRStatus.UNDER_INVESTIGATION: [FIRStatus.RESOLVED, FIRStatus.REJECTED],
+    FIRStatus.RESOLVED: [FIRStatus.CLOSED],
+}
 
 
 # ── Citizen routes ────────────────────────────────────────────────────────────
 
 @router.post("/", response_model=FIRResponse, status_code=201)
+@limiter.limit("10/minute")
 async def file_fir(
+    request: Request,
     payload: FIRCreateRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
     fir = FIR(
-        fir_number=await generate_fir_number(session),
+        fir_number=await fir_repo.generate_number(),
         citizen_id=current_user.id,
         station_id=payload.station_id,
         incident_type=payload.incident_type,
@@ -75,34 +60,34 @@ async def file_fir(
         ai_interview_summary=payload.ai_interview_summary,
         suggested_ipc_sections=payload.suggested_ipc_sections,
     )
-    session.add(fir)
-    await session.flush()  # get fir.id before logging
-    await log_status_change(session, fir.id, None, FIRStatus.SUBMITTED, current_user.id, "FIR filed")
-    await session.commit()
-    await session.refresh(fir)
+    await fir_repo.create(fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=None,
+        new_status=FIRStatus.SUBMITTED,
+        changed_by=current_user.id,
+        notes="FIR filed",
+    ))
     return fir
 
 
 @router.get("/my", response_model=List[FIRResponse])
 async def get_my_firs(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
     current_user: User = Depends(get_current_user),
     status_filter: Optional[FIRStatus] = Query(default=None),
 ):
-    query = select(FIR).where(FIR.citizen_id == current_user.id)
-    if status_filter:
-        query = query.where(FIR.status == status_filter)
-    result = await session.exec(query.order_by(FIR.created_at.desc()))
-    return result.all()
+    return await fir_repo.get_by_citizen(current_user.id, status_filter)
 
 
 @router.get("/{fir_id}", response_model=FIRDetailResponse)
 async def get_fir_detail(
     fir_id: str,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
 
@@ -110,13 +95,10 @@ async def get_fir_detail(
     if current_user.role == UserRole.CITIZEN and fir.citizen_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    history_result = await session.exec(
-        select(FIRStatusHistory)
-        .where(FIRStatusHistory.fir_id == fir_id)
-        .order_by(FIRStatusHistory.changed_at)
-    )
-    history = [StatusHistoryItem.model_validate(h) for h in history_result.all()]
-
+    history = [
+        StatusHistoryItem.model_validate(h)
+        for h in await history_repo.get_by_fir(fir_id)
+    ]
     fir_data = FIRDetailResponse.model_validate(fir)
     fir_data.status_history = history
     return fir_data
@@ -126,39 +108,33 @@ async def get_fir_detail(
 async def update_fir(
     fir_id: str,
     payload: FIRUpdateRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
     current_user: User = Depends(get_current_user),
 ):
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
-
     if fir.citizen_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not your FIR")
-
     if fir.status not in [FIRStatus.DRAFT, FIRStatus.SUBMITTED]:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot edit FIR in '{fir.status}' status",
         )
-
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(fir, field, value)
     fir.updated_at = datetime.utcnow()
-
-    session.add(fir)
-    await session.commit()
-    await session.refresh(fir)
-    return fir
+    return await fir_repo.update(fir)
 
 
 @router.post("/{fir_id}/cancel", response_model=FIRResponse)
 async def cancel_fir(
     fir_id: str,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir or fir.citizen_id != current_user.id:
         raise HTTPException(status_code=404, detail="FIR not found")
 
@@ -170,35 +146,40 @@ async def cancel_fir(
         )
 
     old_status = fir.status
-    # If an officer already claimed it, mark REJECTED so it surfaces in their My Cases dashboard
     new_status = FIRStatus.REJECTED if old_status == FIRStatus.ACKNOWLEDGED else FIRStatus.CLOSED
     note = "Withdrawn by citizen" if new_status == FIRStatus.REJECTED else "Closed by citizen"
 
     fir.status = new_status
     fir.updated_at = datetime.utcnow()
-    session.add(fir)
-    await log_status_change(session, fir.id, old_status, new_status, current_user.id, note)
-    await session.commit()
-    await session.refresh(fir)
+    await fir_repo.update(fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=old_status,
+        new_status=new_status,
+        changed_by=current_user.id,
+        notes=note,
+    ))
     return fir
 
 
 @router.post("/{fir_id}/reapply", response_model=FIRResponse, status_code=201)
+@limiter.limit("10/minute")
 async def reapply_fir(
+    request: Request,
     fir_id: str,
     payload: ReapplyRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
-    original = await session.get(FIR, fir_id)
+    original = await fir_repo.get_by_id(fir_id)
     if not original or original.citizen_id != current_user.id:
         raise HTTPException(status_code=404, detail="FIR not found")
-
     if original.status != FIRStatus.REJECTED:
         raise HTTPException(status_code=400, detail="Can only reapply for a rejected FIR")
 
     new_fir = FIR(
-        fir_number=await generate_fir_number(session),
+        fir_number=await fir_repo.generate_number(),
         citizen_id=current_user.id,
         station_id=original.station_id,
         incident_type=original.incident_type,
@@ -214,11 +195,14 @@ async def reapply_fir(
         reapplied_from_id=original.id,
         reapply_count=original.reapply_count + 1,
     )
-    session.add(new_fir)
-    await session.flush()
-    await log_status_change(session, new_fir.id, None, FIRStatus.SUBMITTED, current_user.id, "Reapplication")
-    await session.commit()
-    await session.refresh(new_fir)
+    await fir_repo.create(new_fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=new_fir.id,
+        previous_status=None,
+        new_status=FIRStatus.SUBMITTED,
+        changed_by=current_user.id,
+        notes="Reapplication",
+    ))
     return new_fir
 
 
@@ -226,10 +210,11 @@ async def reapply_fir(
 async def escalate_fir(
     fir_id: str,
     payload: EscalationRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir or fir.citizen_id != current_user.id:
         raise HTTPException(status_code=404, detail="FIR not found")
 
@@ -243,38 +228,35 @@ async def escalate_fir(
     old_status = fir.status
     fir.status = FIRStatus.ESCALATED
     fir.updated_at = datetime.utcnow()
-    session.add(fir)
-    await log_status_change(
-        session, fir.id, old_status, FIRStatus.ESCALATED, current_user.id,
-        f"Escalated by citizen: {payload.reason}",
-    )
-    await session.commit()
-    await session.refresh(fir)
+    await fir_repo.update(fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=old_status,
+        new_status=FIRStatus.ESCALATED,
+        changed_by=current_user.id,
+        notes=f"Escalated by citizen: {payload.reason}",
+    ))
     return fir
 
 
 # ── Officer routes ────────────────────────────────────────────────────────────
 
-# Valid status transitions an officer can make (enforced server-side)
-VALID_TRANSITIONS: dict = {
-    FIRStatus.ACKNOWLEDGED:       [FIRStatus.UNDER_INVESTIGATION],
-    FIRStatus.UNDER_INVESTIGATION:[FIRStatus.RESOLVED, FIRStatus.REJECTED],
-    FIRStatus.RESOLVED:           [FIRStatus.CLOSED],
-}
-
-
 @router.post("/{fir_id}/acknowledge", response_model=FIRResponse)
 async def acknowledge_fir(
     fir_id: str,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
 ):
     """Claim an unassigned FIR — sets officer_id so no other officer can pick it up."""
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
     if fir.status != FIRStatus.SUBMITTED:
-        raise HTTPException(status_code=400, detail=f"FIR is not in submitted state (current: {fir.status})")
+        raise HTTPException(
+            status_code=400,
+            detail=f"FIR is not in submitted state (current: {fir.status})",
+        )
     if fir.officer_id is not None:
         raise HTTPException(status_code=409, detail="FIR already claimed by another officer")
 
@@ -283,69 +265,61 @@ async def acknowledge_fir(
     fir.officer_id = current_user.id
     fir.acknowledged_at = datetime.utcnow()
     fir.updated_at = datetime.utcnow()
-    session.add(fir)
-    await log_status_change(session, fir.id, old_status, FIRStatus.ACKNOWLEDGED, current_user.id, "FIR acknowledged and claimed")
-    await session.commit()
-    await session.refresh(fir)
+    await fir_repo.update(fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=old_status,
+        new_status=FIRStatus.ACKNOWLEDGED,
+        changed_by=current_user.id,
+        notes="FIR acknowledged and claimed",
+    ))
     return fir
 
 
 @router.get("/station/unassigned", response_model=List[FIRResponse])
 async def get_unassigned_firs(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
     current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
 ):
     """Submitted FIRs for this station not yet claimed by any officer — oldest first."""
     if not current_user.station_id:
-        raise HTTPException(status_code=400, detail="Your account has no station assigned. Contact your admin.")
-    query = (
-        select(FIR)
-        .where(FIR.station_id == current_user.station_id)
-        .where(FIR.status == FIRStatus.SUBMITTED)
-        .where(FIR.officer_id.is_(None))
-        .order_by(FIR.created_at.asc())
-    )
-    result = await session.exec(query)
-    return result.all()
+        raise HTTPException(
+            status_code=400,
+            detail="Your account has no station assigned. Contact your admin.",
+        )
+    return await fir_repo.get_by_station_unassigned(current_user.station_id)
 
 
 @router.get("/station/mine", response_model=List[FIRResponse])
 async def get_my_assigned_firs(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
     current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
     status_filter: Optional[FIRStatus] = Query(default=None),
 ):
     """FIRs assigned to the calling officer, optionally filtered by status."""
-    query = select(FIR).where(FIR.officer_id == current_user.id)
-    if status_filter:
-        query = query.where(FIR.status == status_filter)
-    result = await session.exec(query.order_by(FIR.updated_at.desc()))
-    return result.all()
+    return await fir_repo.get_by_officer(current_user.id, status_filter)
 
 
 @router.get("/station/all", response_model=List[FIRResponse])
 async def get_station_firs(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
     current_user: User = Depends(require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN)),
     status_filter: Optional[FIRStatus] = Query(default=None),
 ):
-    query = select(FIR).where(FIR.station_id == current_user.station_id)
-    if status_filter:
-        query = query.where(FIR.status == status_filter)
-    result = await session.exec(query.order_by(FIR.created_at.desc()))
-    return result.all()
+    return await fir_repo.get_by_station(current_user.station_id, status_filter)
 
 
 @router.patch("/{fir_id}/status", response_model=FIRResponse)
 async def update_fir_status(
     fir_id: str,
     payload: FIRStatusUpdateRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(
         require_roles(UserRole.OFFICER, UserRole.STATION_ADMIN, UserRole.HIGHER_AUTHORITY)
     ),
 ):
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(status_code=404, detail="FIR not found")
 
@@ -360,15 +334,22 @@ async def update_fir_status(
 
     # Rejection always requires a written reason
     if payload.new_status == FIRStatus.REJECTED and not (payload.notes or "").strip():
-        raise HTTPException(status_code=400, detail="A rejection reason is required and will be shown to the citizen")
+        raise HTTPException(
+            status_code=400,
+            detail="A rejection reason is required and will be shown to the citizen",
+        )
 
     old_status = fir.status
     fir.status = payload.new_status
     if payload.ipc_sections:
         fir.ipc_sections = payload.ipc_sections
     fir.updated_at = datetime.utcnow()
-    session.add(fir)
-    await log_status_change(session, fir.id, old_status, payload.new_status, current_user.id, payload.notes)
-    await session.commit()
-    await session.refresh(fir)
+    await fir_repo.update(fir)
+    await history_repo.create(FIRStatusHistory(
+        fir_id=fir.id,
+        previous_status=old_status,
+        new_status=payload.new_status,
+        changed_by=current_user.id,
+        notes=payload.notes,
+    ))
     return fir

@@ -1,8 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from app.core.database import get_session
+from app.core.limiter import limiter
 from app.core.security import (
     hash_password,
     verify_password,
@@ -12,8 +10,10 @@ from app.core.security import (
     get_current_user,
 )
 from app.models.user import User
-from app.models.fir import PoliceStation
 from app.models.enums import UserRole
+from app.repositories import get_user_repo, get_station_repo
+from app.repositories.user_repository import UserRepository
+from app.repositories.station_repository import StationRepository
 from app.schemas.auth import (
     RegisterRequest,
     LoginRequest,
@@ -28,21 +28,17 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def register(payload: RegisterRequest, session: AsyncSession = Depends(get_session)):
-    # Check duplicates
-    existing = await session.exec(
-        select(User).where(
-            (User.email == payload.email) |
-            (User.username == payload.username) |
-            (User.aadhar_number == payload.aadhar_number)
-        )
-    )
-    if existing.first():
+@limiter.limit("5/minute")
+async def register(
+    request: Request,
+    payload: RegisterRequest,
+    user_repo: UserRepository = Depends(get_user_repo),
+):
+    if await user_repo.exists_duplicate(payload.email, payload.username, payload.aadhar_number):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email, username, or Aadhar number already registered",
         )
-
     user = User(
         email=payload.email,
         username=payload.username,
@@ -51,26 +47,24 @@ async def register(payload: RegisterRequest, session: AsyncSession = Depends(get
         phone=payload.phone,
         aadhar_number=payload.aadhar_number,
     )
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-    return user
+    return await user_repo.create(user)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: LoginRequest, session: AsyncSession = Depends(get_session)):
-    result = await session.exec(select(User).where(User.email == payload.email))
-    user = result.first()
-
+@limiter.limit("5/minute")
+async def login(
+    request: Request,
+    payload: LoginRequest,
+    user_repo: UserRepository = Depends(get_user_repo),
+):
+    user = await user_repo.get_by_email(payload.email)
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
-
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is deactivated")
-
     token_data = {"sub": user.id, "role": user.role}
     return TokenResponse(
         access_token=create_access_token(token_data),
@@ -80,21 +74,18 @@ async def login(payload: LoginRequest, session: AsyncSession = Depends(get_sessi
 
 
 @router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def refresh_token(
+    request: Request,
     payload: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
 ):
     data = decode_token(payload.refresh_token)
-
     if data.get("type") != "refresh":
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-    result = await session.exec(select(User).where(User.id == data["sub"]))
-    user = result.first()
-
+    user = await user_repo.get_by_id(data["sub"])
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="User not found")
-
     token_data = {"sub": user.id, "role": user.role}
     return TokenResponse(
         access_token=create_access_token(token_data),
@@ -111,7 +102,7 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @router.patch("/me/district", response_model=UserResponse)
 async def set_my_district(
     payload: DistrictSetRequest,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
 ):
     """Higher authority sets their district scope on first login. Locked once set."""
@@ -120,16 +111,14 @@ async def set_my_district(
     if current_user.district is not None:
         raise HTTPException(status_code=400, detail="District already set. Contact admin to change it.")
     current_user.district = payload.district.strip()
-    session.add(current_user)
-    await session.commit()
-    await session.refresh(current_user)
-    return current_user
+    return await user_repo.update(current_user)
 
 
 @router.patch("/me/station", response_model=UserResponse)
 async def set_my_station(
     payload: StationSetRequest,
-    session: AsyncSession = Depends(get_session),
+    user_repo: UserRepository = Depends(get_user_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     current_user: User = Depends(get_current_user),
 ):
     """Officer sets their own station on first login. Blocked once station_id is already set."""
@@ -138,11 +127,8 @@ async def set_my_station(
             status_code=400,
             detail="Station already assigned. Contact your admin to change it.",
         )
-    station = await session.get(PoliceStation, payload.station_id)
+    station = await station_repo.get_by_id(payload.station_id)
     if not station:
         raise HTTPException(status_code=404, detail="Station not found")
     current_user.station_id = payload.station_id
-    session.add(current_user)
-    await session.commit()
-    await session.refresh(current_user)
-    return current_user
+    return await user_repo.update(current_user)

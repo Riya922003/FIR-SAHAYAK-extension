@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel.ext.asyncio.session import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 
-from app.core.database import get_session
+from app.core.limiter import limiter
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.fir import ChatLog
+from app.repositories import get_chat_log_repo
+from app.repositories.chat_log_repository import ChatLogRepository
 from app.services.ai_service import (
     get_ai_response,
     suggest_ipc_sections,
@@ -63,9 +64,11 @@ class SummarizeResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
+@limiter.limit("20/minute")
 async def chat(
+    request: Request,
     payload: ChatRequest,
-    session: AsyncSession = Depends(get_session),
+    chat_log_repo: ChatLogRepository = Depends(get_chat_log_repo),
     current_user: User = Depends(get_current_user),
 ):
     gemini_history = [
@@ -74,19 +77,18 @@ async def chat(
     ]
     reply = await get_ai_response(payload.message, gemini_history)
 
-    log = ChatLog(
+    await chat_log_repo.create(ChatLog(
         user_id=current_user.id,
         user_message=payload.message,
         bot_response=reply,
-    )
-    session.add(log)
-    await session.commit()
-
+    ))
     return ChatResponse(reply=reply)
 
 
 @router.post("/suggest-ipc", response_model=IPCSuggestResponse)
+@limiter.limit("20/minute")
 async def suggest_ipc(
+    request: Request,
     payload: IPCSuggestRequest,
     current_user: User = Depends(get_current_user),
 ):
@@ -97,7 +99,9 @@ async def suggest_ipc(
 
 
 @router.post("/interview", response_model=InterviewResponse)
+@limiter.limit("30/minute")
 async def interview(
+    request: Request,
     payload: InterviewRequest,
     current_user: User = Depends(get_current_user),
 ):
@@ -116,7 +120,9 @@ async def interview(
 
 
 @router.post("/summarize-interview", response_model=SummarizeResponse)
+@limiter.limit("10/minute")
 async def summarize_interview_endpoint(
+    request: Request,
     payload: SummarizeRequest,
     current_user: User = Depends(get_current_user),
 ):

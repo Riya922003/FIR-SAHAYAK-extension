@@ -4,14 +4,21 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlmodel import select, func
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.core.database import get_session
-from app.core.security import require_roles, get_current_user
+from app.core.security import require_roles
 from app.models.enums import FIRStatus, UserRole
-from app.models.fir import FIR, FIRStatusHistory, PoliceStation
+from app.models.fir import FIRStatusHistory
 from app.models.user import User
+from app.repositories import (
+    get_fir_repo,
+    get_station_repo,
+    get_history_repo,
+    get_user_repo,
+)
+from app.repositories.fir_repository import FIRRepository
+from app.repositories.station_repository import StationRepository
+from app.repositories.status_history_repository import StatusHistoryRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.fir import FIRResponse
 
 logger = logging.getLogger(__name__)
@@ -108,26 +115,23 @@ class StationHealth(BaseModel):
     state: str
     address: str
     phone: Optional[str] = None
-    pending: int         # SUBMITTED — not yet claimed
-    escalated: int       # ESCALATED
-    investigating: int   # UNDER_INVESTIGATION
-    overdue: int         # SUBMITTED > 48 h without acknowledgement
-    total_active: int    # all non-terminal
+    pending: int
+    escalated: int
+    investigating: int
+    overdue: int
+    total_active: int
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.get("/district/stats", response_model=DistrictStats)
 async def get_district_stats(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-
-    station_ids = list(
-        (await session.exec(select(PoliceStation.id).where(func.lower(PoliceStation.district) == district.lower()))).all()
-    )
-    total_stations = len(station_ids)
+    station_ids = await station_repo.get_ids_by_district(district)
 
     if not station_ids:
         return DistrictStats(
@@ -135,59 +139,44 @@ async def get_district_stats(
             pending_escalations=0, resolved_this_month=0,
         )
 
-    active_count = (await session.exec(
-        select(func.count(FIR.id))
-        .where(FIR.station_id.in_(station_ids))
-        .where(FIR.status.in_(ACTIVE_STATUSES))
-    )).one()
-
-    escalation_count = (await session.exec(
-        select(func.count(FIR.id))
-        .where(FIR.station_id.in_(station_ids))
-        .where(FIR.status == FIRStatus.ESCALATED)
-    )).one()
-
     now = datetime.utcnow()
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    resolved_month = (await session.exec(
-        select(func.count(FIR.id))
-        .where(FIR.station_id.in_(station_ids))
-        .where(FIR.status == FIRStatus.RESOLVED)
-        .where(FIR.updated_at >= month_start)
-    )).one()
 
     return DistrictStats(
-        total_stations=total_stations,
-        total_active_firs=active_count,
-        pending_escalations=escalation_count,
-        resolved_this_month=resolved_month,
+        total_stations=len(station_ids),
+        total_active_firs=await fir_repo.count_by_station_ids_and_statuses(
+            station_ids, ACTIVE_STATUSES
+        ),
+        pending_escalations=await fir_repo.count_by_station_ids_and_statuses(
+            station_ids, [FIRStatus.ESCALATED]
+        ),
+        resolved_this_month=await fir_repo.count_by_station_ids_status_since(
+            station_ids, FIRStatus.RESOLVED, month_start
+        ),
     )
 
 
 @router.get("/district/stations", response_model=List[StationHealth])
 async def get_district_stations(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-
-    stations = (await session.exec(
-        select(PoliceStation)
-        .where(func.lower(PoliceStation.district) == district.lower())
-        .order_by(PoliceStation.name)
-    )).all()
-
+    stations = await station_repo.get_by_district(district)
     overdue_cutoff = datetime.utcnow() - timedelta(hours=OVERDUE_HOURS)
     result = []
 
     for st in stations:
-        firs = (await session.exec(select(FIR).where(FIR.station_id == st.id))).all()
-
-        pending      = sum(1 for f in firs if f.status == FIRStatus.SUBMITTED)
-        escalated    = sum(1 for f in firs if f.status == FIRStatus.ESCALATED)
+        firs = await fir_repo.get_by_station(st.id)
+        pending       = sum(1 for f in firs if f.status == FIRStatus.SUBMITTED)
+        escalated     = sum(1 for f in firs if f.status == FIRStatus.ESCALATED)
         investigating = sum(1 for f in firs if f.status == FIRStatus.UNDER_INVESTIGATION)
-        overdue      = sum(1 for f in firs if f.status == FIRStatus.SUBMITTED and f.created_at < overdue_cutoff)
-        total_active = sum(1 for f in firs if f.status in ACTIVE_STATUSES)
+        overdue       = sum(
+            1 for f in firs
+            if f.status == FIRStatus.SUBMITTED and f.created_at < overdue_cutoff
+        )
+        total_active  = sum(1 for f in firs if f.status in ACTIVE_STATUSES)
 
         result.append(StationHealth(
             id=st.id, name=st.name, district=st.district,
@@ -197,7 +186,6 @@ async def get_district_stations(
             total_active=total_active,
         ))
 
-    # Sort: most urgent first (escalated + overdue desc, then total_active desc)
     result.sort(key=lambda s: (-(s.escalated + s.overdue), -s.total_active))
     return result
 
@@ -205,62 +193,44 @@ async def get_district_stations(
 @router.get("/district/stations/{station_id}/firs", response_model=List[FIRResponse])
 async def get_station_firs(
     station_id: str,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-    station = await session.get(PoliceStation, station_id)
+    station = await station_repo.get_by_id(station_id)
     if not station or station.district.lower() != district.lower():
         raise HTTPException(404, "Station not found in your district")
-
-    firs = (await session.exec(
-        select(FIR)
-        .where(FIR.station_id == station_id)
-        .order_by(FIR.updated_at.desc())
-    )).all()
-    return firs
+    return await fir_repo.get_by_station(station_id)
 
 
 @router.get("/district/escalations", response_model=List[EscalationItem])
 async def get_district_escalations(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-
-    station_ids_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
-    )).all()
-    station_map = {row[0]: row[1] for row in station_ids_rows}
+    station_map = await station_repo.get_id_name_map_by_district(district)
 
     if not station_map:
         return []
 
-    escalated_firs = (await session.exec(
-        select(FIR)
-        .where(FIR.station_id.in_(list(station_map.keys())))
-        .where(FIR.status == FIRStatus.ESCALATED)
-        .order_by(FIR.updated_at.desc())
-    )).all()
+    escalated_firs = await fir_repo.get_by_station_ids(
+        list(station_map.keys()), status=FIRStatus.ESCALATED
+    )
 
     result = []
     now = datetime.utcnow()
 
     for fir in escalated_firs:
-        # Get the most recent status history entry for ESCALATED status to extract reason + time
-        history = (await session.exec(
-            select(FIRStatusHistory)
-            .where(FIRStatusHistory.fir_id == fir.id)
-            .where(FIRStatusHistory.new_status == FIRStatus.ESCALATED)
-            .order_by(FIRStatusHistory.changed_at.desc())
-        )).first()
+        history = await history_repo.get_last_escalation_entry(fir.id)
 
         escalated_at = history.changed_at if history else fir.updated_at
-        reason = history.notes or "No reason provided"
+        reason = history.notes or "No reason provided" if history else "No reason provided"
         if reason.startswith("Escalated by citizen: "):
             reason = reason[len("Escalated by citizen: "):]
-
-        days = (now - escalated_at).days
 
         result.append(EscalationItem(
             fir_id=fir.id,
@@ -272,7 +242,7 @@ async def get_district_escalations(
             station_name=station_map.get(fir.station_id, "Unknown"),
             escalated_at=escalated_at,
             reason=reason,
-            days_pending=days,
+            days_pending=(now - escalated_at).days,
         ))
 
     return result
@@ -282,15 +252,17 @@ async def get_district_escalations(
 async def post_escalation_action(
     fir_id: str,
     payload: AuthorityActionRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(404, "FIR not found")
 
-    station = await session.get(PoliceStation, fir.station_id)
+    station = await station_repo.get_by_id(fir.station_id)
     if not station or station.district.lower() != district.lower():
         raise HTTPException(404, "FIR not in your district")
 
@@ -302,43 +274,34 @@ async def post_escalation_action(
     note = f"[Authority Directive] {payload.directive}"
     if payload.hand_back:
         note += " — Handed back to station for investigation."
-
-    if payload.hand_back:
         fir.status = new_status
         fir.updated_at = datetime.utcnow()
-        session.add(fir)
+        await fir_repo.update(fir)
 
-    history = FIRStatusHistory(
+    await history_repo.create(FIRStatusHistory(
         fir_id=fir.id,
         previous_status=old_status,
         new_status=new_status,
         changed_by=current_user.id,
         notes=note,
-    )
-    session.add(history)
-    await session.commit()
-    await session.refresh(fir)
+    ))
     return fir
 
 
 @router.get("/district/cases", response_model=List[FIRWithStation])
 async def get_district_cases(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
     status: Optional[FIRStatus] = Query(default=None),
     station_id: Optional[str] = Query(default=None),
 ):
     district = _district(current_user)
-
-    station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
-    )).all()
-    station_map = {row[0]: row[1] for row in station_rows}
+    station_map = await station_repo.get_id_name_map_by_district(district)
 
     if not station_map:
         return []
 
-    # Scope to requested station or all district stations
     if station_id:
         if station_id not in station_map:
             raise HTTPException(404, "Station not found in your district")
@@ -346,12 +309,7 @@ async def get_district_cases(
     else:
         ids = list(station_map.keys())
 
-    query = select(FIR).where(FIR.station_id.in_(ids))
-    if status:
-        query = query.where(FIR.status == status)
-    query = query.order_by(FIR.updated_at.desc())
-
-    firs = (await session.exec(query)).all()
+    firs = await fir_repo.get_by_station_ids(ids, status=status)
 
     return [
         FIRWithStation(
@@ -378,58 +336,49 @@ async def get_district_cases(
 async def add_fir_note(
     fir_id: str,
     payload: NoteRequest,
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
-    fir = await session.get(FIR, fir_id)
+    fir = await fir_repo.get_by_id(fir_id)
     if not fir:
         raise HTTPException(404, "FIR not found")
-    station = await session.get(PoliceStation, fir.station_id)
+    station = await station_repo.get_by_id(fir.station_id)
     if not station or station.district.lower() != district.lower():
         raise HTTPException(404, "FIR not in your district")
 
-    history = FIRStatusHistory(
+    await history_repo.create(FIRStatusHistory(
         fir_id=fir.id,
         previous_status=fir.status,
         new_status=fir.status,
         changed_by=current_user.id,
         notes=f"[Authority Note] {payload.note}",
-    )
-    session.add(history)
-    await session.commit()
-    await session.refresh(fir)
+    ))
     return fir
 
 
 @router.get("/district/directives", response_model=List[DirectiveItem])
 async def get_district_directives(
-    session: AsyncSession = Depends(get_session),
+    fir_repo: FIRRepository = Depends(get_fir_repo),
+    station_repo: StationRepository = Depends(get_station_repo),
+    history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
+    station_map = await station_repo.get_id_name_map_by_district(district)
 
-    station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
-    )).all()
-    station_map = {row[0]: row[1] for row in station_rows}
     if not station_map:
         return []
 
-    fir_rows = (await session.exec(
-        select(FIR.id, FIR.fir_number, FIR.station_id)
-        .where(FIR.station_id.in_(list(station_map.keys())))
-    )).all()
+    fir_rows = await fir_repo.get_partial_by_station_ids(list(station_map.keys()))
     fir_map = {row[0]: (row[1], row[2]) for row in fir_rows}  # fir_id → (fir_number, station_id)
+
     if not fir_map:
         return []
 
-    history_rows = (await session.exec(
-        select(FIRStatusHistory)
-        .where(FIRStatusHistory.fir_id.in_(list(fir_map.keys())))
-        .where(FIRStatusHistory.notes.contains("[Authority Directive]"))
-        .order_by(FIRStatusHistory.changed_at.desc())
-    )).all()
+    history_rows = await history_repo.get_directives_by_fir_ids(list(fir_map.keys()))
 
     result = []
     for h in history_rows:
@@ -452,24 +401,20 @@ async def get_district_directives(
 
 @router.get("/district/officers", response_model=List[OfficerInfo])
 async def get_district_officers(
-    session: AsyncSession = Depends(get_session),
+    station_repo: StationRepository = Depends(get_station_repo),
+    user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(require_roles(UserRole.HIGHER_AUTHORITY)),
 ):
     district = _district(current_user)
+    station_map = await station_repo.get_id_name_map_by_district(district)
 
-    station_rows = (await session.exec(
-        select(PoliceStation.id, PoliceStation.name).where(func.lower(PoliceStation.district) == district.lower())
-    )).all()
-    station_map = {row[0]: row[1] for row in station_rows}
     if not station_map:
         return []
 
-    officers = (await session.exec(
-        select(User)
-        .where(User.station_id.in_(list(station_map.keys())))
-        .where(User.role.in_([UserRole.OFFICER, UserRole.STATION_ADMIN]))
-        .order_by(User.full_name)
-    )).all()
+    officers = await user_repo.get_by_station_ids(
+        list(station_map.keys()),
+        roles=[UserRole.OFFICER, UserRole.STATION_ADMIN],
+    )
 
     return [
         OfficerInfo(
