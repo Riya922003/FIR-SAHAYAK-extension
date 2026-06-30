@@ -4,6 +4,7 @@ from app.repositories.station_repository import StationRepository, get_station_r
 from app.repositories.status_history_repository import StatusHistoryRepository, get_history_repo
 from app.repositories.escalation_repository import EscalationRepository, get_escalation_repo
 from app.repositories.chat_log_repository import ChatLogRepository, get_chat_log_repo
+from app.repositories.ai_conversation_repository import AIConversationRepository, get_conv_repo
 
 __all__ = [
     "UserRepository", "get_user_repo",
@@ -12,4 +13,5 @@ __all__ = [
     "StatusHistoryRepository", "get_history_repo",
     "EscalationRepository", "get_escalation_repo",
     "ChatLogRepository", "get_chat_log_repo",
+    "AIConversationRepository", "get_conv_repo",
 ]

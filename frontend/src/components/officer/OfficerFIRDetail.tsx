@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { getOfficerFIRDetail, updateFIRStatus, OFFICER_TRANSITIONS, NEXT_STATUS_LABELS } from '../../api/officer';
-import { INCIDENT_LABELS, STATUS_LABELS, type FIRDetail } from '../../api/fir';
+import {
+  INCIDENT_LABELS, STATUS_LABELS, ENRICHMENT_LABELS, ENRICHMENT_COLORS,
+  type FIRDetail,
+} from '../../api/fir';
+import { capture } from '../../lib/posthog';
 
 interface Props {
   firId: string;
@@ -46,9 +50,9 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
     setSubmitError('');
     try {
       await updateFIRStatus(token, fir.id, nextStatus, notes.trim() || undefined, ipcSections.trim() || undefined);
+      capture('officer_status_updated', { fir_id: fir.id, fir_number: fir.fir_number, new_status: nextStatus });
       setSubmitSuccess(`Status updated to "${STATUS_LABELS[nextStatus as keyof typeof STATUS_LABELS]}"`);
       onRefresh();
-      // Reload detail
       const updated = await getOfficerFIRDetail(token, firId);
       setFir(updated);
       setNotes('');
@@ -70,8 +74,11 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
   const validNextStatuses = OFFICER_TRANSITIONS[fir.status] ?? [];
   const isTerminal = validNextStatuses.length === 0;
   const isRejecting = nextStatus === 'rejected';
-
   const currentIdx = fir.status_history.length - 1;
+
+  const es = fir.enrichment_status;
+  const eColor = ENRICHMENT_COLORS[es];
+  const eLabel = ENRICHMENT_LABELS[es];
 
   return (
     <>
@@ -83,6 +90,13 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
           <h1>{fir.fir_number}</h1>
           <span className={`status-badge status-badge--${fir.status}`}>
             {STATUS_LABELS[fir.status]}
+          </span>
+          <span style={{
+            fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem',
+            borderRadius: 999, border: `1px solid ${eColor}`,
+            color: eColor, background: `${eColor}18`,
+          }}>
+            {eLabel}
           </span>
         </div>
         <p>Filed on {new Date(fir.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
@@ -100,7 +114,7 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
           <div className="detail-row"><label>Address</label><span>{fir.complainant_address}</span></div>
           {fir.ipc_sections && <div className="detail-row"><label>IPC Sections</label><span>{fir.ipc_sections}</span></div>}
           <div className="detail-row detail-description">
-            <label>Description</label>
+            <label>Original Description</label>
             <span style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{fir.description}</span>
           </div>
           {fir.witness_info && (
@@ -112,23 +126,55 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
-      {/* AI Interview Summary */}
-      {fir.ai_interview_summary && (
-        <div className="dash-card" style={{ borderLeft: '4px solid #3b82f6' }}>
-          <h2 className="section-label" style={{ color: '#1d4ed8' }}>AI Interview Summary</h2>
-          <p style={{ fontSize: '0.875rem', color: '#1e3a5f', lineHeight: 1.7, margin: 0 }}>
-            {fir.ai_interview_summary}
-          </p>
-          {fir.suggested_ipc_sections && (
-            <div style={{ marginTop: '1rem', paddingTop: '0.875rem', borderTop: '1px solid #bfdbfe' }}>
-              <div className="section-label" style={{ color: '#1d4ed8', marginBottom: '0.5rem' }}>Citizen-Accepted IPC Sections</div>
-              <div style={{ fontSize: '0.875rem', color: '#1e3a5f', whiteSpace: 'pre-line' }}>
-                {fir.suggested_ipc_sections}
-              </div>
-            </div>
-          )}
+      {/* AI Enrichment — shown to officer when complete or in any state */}
+      <div className="dash-card" style={{ borderLeft: es === 'complete' ? '4px solid #22c55e' : '4px solid #e2e8f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <h2 className="section-label" style={{ margin: 0 }}>AI Enrichment</h2>
+          <span style={{
+            fontSize: '0.7rem', fontWeight: 700, padding: '0.2rem 0.6rem',
+            borderRadius: 999, background: `${eColor}18`,
+            color: eColor, border: `1px solid ${eColor}`,
+          }}>
+            {eLabel}
+          </span>
         </div>
-      )}
+
+        {es === 'complete' && fir.description_enriched ? (
+          <>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.75rem' }}>
+              The citizen completed the AI enrichment interview. Enriched summary below:
+            </p>
+            <div style={{
+              background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8,
+              padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#14532d', lineHeight: 1.7,
+            }}>
+              {fir.description_enriched}
+            </div>
+            {fir.suggested_ipc_sections && (
+              <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid #bbf7d0' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI-Suggested IPC Sections</div>
+                <div style={{ fontSize: '0.875rem', color: '#14532d', whiteSpace: 'pre-line' }}>{fir.suggested_ipc_sections}</div>
+              </div>
+            )}
+          </>
+        ) : es === 'pending' ? (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            The citizen has not yet started the AI enrichment interview.
+          </p>
+        ) : es === 'in_progress' ? (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            The citizen has started but not yet completed the enrichment interview.
+          </p>
+        ) : es === 'expired' ? (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            The enrichment window expired when this FIR was acknowledged. No enrichment data available.
+          </p>
+        ) : (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            AI enrichment was not available for this FIR.
+          </p>
+        )}
+      </div>
 
       {/* Status history */}
       <div className="dash-card">
@@ -152,7 +198,7 @@ export default function OfficerFIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
-      {/* Status update form — only shown if there are valid next transitions */}
+      {/* Status update form */}
       {!isTerminal && (
         <div className="dash-card">
           <h2 className="section-label">Update Status</h2>

@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getFIRDetail, cancelFIR, escalateFIR, type FIRDetail as FIRDetailType, type FIRStatus, STATUS_LABELS, INCIDENT_LABELS } from '../../api/fir';
+import {
+  getFIRDetail, cancelFIR, escalateFIR,
+  type FIRDetail as FIRDetailType, type FIRStatus,
+  STATUS_LABELS, INCIDENT_LABELS, ENRICHMENT_LABELS, ENRICHMENT_COLORS,
+} from '../../api/fir';
+import { capture } from '../../lib/posthog';
 
 interface Props {
   firId: string;
   onBack: () => void;
   onRefresh: () => void;
+  onStartEnrichment?: (firId: string, firNumber: string) => void;
 }
 
 const TIMELINE_STEPS: FIRStatus[] = [
@@ -14,7 +20,7 @@ const TIMELINE_STEPS: FIRStatus[] = [
 
 const TERMINAL: FIRStatus[] = ['rejected', 'closed', 'escalated'];
 
-export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
+export default function FIRDetail({ firId, onBack, onRefresh, onStartEnrichment }: Props) {
   const { token } = useAuth();
   const [fir, setFir] = useState<FIRDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +66,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
     setEscalateError('');
     try {
       await escalateFIR(token, fir.id, escalateReason.trim());
+      capture('escalation_submitted', { fir_id: fir.id, fir_number: fir.fir_number });
       onRefresh();
       onBack();
     } catch (e: unknown) {
@@ -77,12 +84,17 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
   const canCancel = ['submitted', 'draft', 'acknowledged'].includes(fir.status);
   const canEscalate = ['acknowledged', 'under_investigation'].includes(fir.status);
 
-  // Build timeline steps
   const steps = isTerminal
     ? [...TIMELINE_STEPS.slice(0, 3), fir.status]
     : TIMELINE_STEPS;
-
   const currentIdx = steps.indexOf(fir.status);
+
+  // Enrichment state
+  const es = fir.enrichment_status;
+  const enrichmentLocked = fir.status === 'acknowledged' || TERMINAL.includes(fir.status);
+  const canStartEnrichment = (es === 'pending' || es === 'in_progress') && !enrichmentLocked && !!onStartEnrichment;
+  const enrichmentColor = ENRICHMENT_COLORS[es];
+  const enrichmentLabel = ENRICHMENT_LABELS[es];
 
   return (
     <>
@@ -95,15 +107,21 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
           <span className={`status-badge status-badge--${fir.status}`}>
             {STATUS_LABELS[fir.status]}
           </span>
+          <span style={{
+            fontSize: '0.72rem', fontWeight: 600, padding: '0.2rem 0.6rem',
+            borderRadius: 999, border: `1px solid ${enrichmentColor}`,
+            color: enrichmentColor, background: `${enrichmentColor}18`,
+            letterSpacing: '0.02em',
+          }}>
+            {enrichmentLabel}
+          </span>
         </div>
         <p>Filed on {new Date(fir.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
 
       {/* FIR Info */}
       <div className="dash-card">
-        <h2 className="section-label">
-          Incident Details
-        </h2>
+        <h2 className="section-label">Incident Details</h2>
         <div className="fir-detail-grid">
           <div className="detail-row">
             <label>Incident Type</label>
@@ -134,12 +152,87 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
+      {/* AI Enrichment section */}
+      <div className="dash-card" style={{ borderLeft: es === 'complete' ? '4px solid #22c55e' : es === 'expired' ? '4px solid #94a3b8' : '4px solid #3b82f6' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+          <h2 className="section-label" style={{ margin: 0 }}>AI Enrichment</h2>
+          <span style={{
+            fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0.7rem',
+            borderRadius: 999, background: `${enrichmentColor}18`,
+            color: enrichmentColor, border: `1px solid ${enrichmentColor}`,
+          }}>
+            {enrichmentLabel}
+          </span>
+        </div>
+
+        {es === 'pending' && !enrichmentLocked && (
+          <>
+            <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, marginBottom: '1rem' }}>
+              Help the investigating officer by answering up to 10 focused questions. Your answers will be summarised into an enriched case description alongside your original complaint.
+            </p>
+            {canStartEnrichment && (
+              <button className="btn-primary" onClick={() => onStartEnrichment(fir.id, fir.fir_number)}>
+                Start AI Enrichment
+              </button>
+            )}
+          </>
+        )}
+
+        {es === 'in_progress' && !enrichmentLocked && (
+          <>
+            <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: 1.6, marginBottom: '1rem' }}>
+              You've started the enrichment interview. Continue where you left off — your previous answers are saved.
+            </p>
+            {canStartEnrichment && (
+              <button className="btn-primary" onClick={() => onStartEnrichment(fir.id, fir.fir_number)}>
+                Continue Enrichment
+              </button>
+            )}
+          </>
+        )}
+
+        {(es === 'pending' || es === 'in_progress') && enrichmentLocked && (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            An officer has acknowledged this FIR — the enrichment window is now closed.
+          </p>
+        )}
+
+        {es === 'expired' && (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            The officer acknowledged this FIR before enrichment was completed. The window has now closed.
+          </p>
+        )}
+
+        {es === 'complete' && fir.description_enriched && (
+          <>
+            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.75rem' }}>
+              AI-enriched summary generated from your interview — visible to the investigating officer.
+            </p>
+            <div style={{
+              background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 8,
+              padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#14532d', lineHeight: 1.7,
+            }}>
+              {fir.description_enriched}
+            </div>
+            {fir.suggested_ipc_sections && (
+              <div style={{ marginTop: '0.875rem', paddingTop: '0.875rem', borderTop: '1px solid #bbf7d0' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#15803d', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>AI-Suggested IPC Sections</div>
+                <div style={{ fontSize: '0.875rem', color: '#14532d', whiteSpace: 'pre-line' }}>{fir.suggested_ipc_sections}</div>
+              </div>
+            )}
+          </>
+        )}
+
+        {es === 'unavailable' && (
+          <p style={{ fontSize: '0.875rem', color: '#64748b', margin: 0 }}>
+            AI enrichment was not available at the time of filing. You can try starting an enrichment session now.
+          </p>
+        )}
+      </div>
+
       {/* Status Timeline */}
       <div className="dash-card">
-        <h2 className="section-label">
-          Status Timeline
-        </h2>
-
+        <h2 className="section-label">Status Timeline</h2>
         <div className="status-timeline">
           {steps.map((step, idx) => {
             const historyEntry = fir.status_history.find(h => h.new_status === step);
@@ -182,7 +275,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
         </div>
       </div>
 
-      {/* Escalated info box (citizen visibility — Phase 9) */}
+      {/* Escalated info box */}
       {fir.status === 'escalated' && (
         <div style={{
           background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12,
@@ -195,7 +288,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
               Escalated to District Higher Authority
             </div>
             <div style={{ fontSize: '0.82rem', color: '#92400e', lineHeight: 1.6 }}>
-              Your FIR has been escalated and is now under review by the district authority. You will be notified if any action is taken. You can no longer close or withdraw this FIR.
+              Your FIR has been escalated and is now under review by the district authority. You will be notified if any action is taken.
             </div>
           </div>
         </div>
@@ -204,11 +297,8 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
       {/* Actions */}
       {(canCancel || canEscalate) && (
         <div className="dash-card">
-          <h2 className="section-label">
-            Actions
-          </h2>
+          <h2 className="section-label">Actions</h2>
 
-          {/* Close / Withdraw */}
           {canCancel && (
             <div className="action-bar" style={{ marginBottom: canEscalate ? '1rem' : 0 }}>
               {!cancelConfirm && (
@@ -234,7 +324,6 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
             </div>
           )}
 
-          {/* Escalate to Higher Authority */}
           {canEscalate && (
             <div>
               {!showEscalate ? (
@@ -251,7 +340,7 @@ export default function FIRDetail({ firId, onBack, onRefresh }: Props) {
                     Escalate to District Authority
                   </p>
                   <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 0.75rem' }}>
-                    Use this if the officer has not taken action or you feel your case needs oversight. The district authority will be notified.
+                    Use this if the officer has not taken action or you feel your case needs oversight.
                   </p>
                   <textarea
                     value={escalateReason}

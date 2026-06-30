@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, date, time
-from typing import Optional
+from typing import Optional, List
+from sqlalchemy import Column, JSON
 from sqlmodel import SQLModel, Field
-from app.models.enums import FIRStatus, EscalationStatus, IncidentType
+from app.models.enums import FIRStatus, EscalationStatus, IncidentType, EnrichmentStatus
 
 
 class PoliceStation(SQLModel, table=True):
@@ -49,10 +50,16 @@ class FIR(SQLModel, table=True):
     # Witness
     witness_info: Optional[str] = None
 
-    # AI interview summary (generated during filing, visible to officer)
+    # AI interview summary (generated after enrichment, visible to officer)
     ai_interview_summary: Optional[str] = None
-    # AI-suggested IPC sections (citizen-accepted during filing)
+    # AI-suggested IPC sections (set after enrichment completes)
     suggested_ipc_sections: Optional[str] = None
+
+    # Enrichment fields
+    enrichment_status: EnrichmentStatus = Field(default=EnrichmentStatus.PENDING)
+    # description holds the citizen's original text from the form (never overwritten)
+    # description_enriched is set once the Groq interview summarises the conversation
+    description_enriched: Optional[str] = None
 
     # Internal notes (officer only)
     officer_notes: Optional[str] = None
@@ -92,6 +99,22 @@ class Escalation(SQLModel, table=True):
     resolution_notes: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     resolved_at: Optional[datetime] = None
+
+
+class AIConversation(SQLModel, table=True):
+    """Persists the Groq enrichment interview for one FIR server-side.
+    One row per FIR. messages is a JSON array of {role, content} dicts.
+    turn_count = number of citizen answers submitted (0–10).
+    """
+    __tablename__ = "ai_conversations"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    fir_id: str = Field(foreign_key="firs.id", index=True, unique=True)
+    # JSON array: [{"role": "assistant"|"user", "content": "..."}]
+    messages: List[dict] = Field(default=[], sa_column=Column(JSON, nullable=False))
+    turn_count: int = Field(default=0)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class ChatLog(SQLModel, table=True):

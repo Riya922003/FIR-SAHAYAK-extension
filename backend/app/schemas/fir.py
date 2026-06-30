@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, date
-from app.models.enums import FIRStatus, IncidentType, EscalationStatus
+from app.models.enums import FIRStatus, IncidentType, EscalationStatus, EnrichmentStatus
 
 
 # ── FIR Request schemas ───────────────────────────────────────────────────────
@@ -18,8 +18,8 @@ class FIRCreateRequest(BaseModel):
     complainant_address: str
     complainant_phone: str = Field(pattern=r"^\d{10}$")
     witness_info: Optional[str] = None
-    ai_interview_summary: Optional[str] = None
-    suggested_ipc_sections: Optional[str] = None
+    # ai_interview_summary and suggested_ipc_sections removed:
+    # enrichment now happens server-side after filing via /enrichment endpoints
 
 
 class FIRUpdateRequest(BaseModel):
@@ -78,6 +78,9 @@ class FIRResponse(BaseModel):
     complainant_address: str
     complainant_phone: str
     witness_info: Optional[str]
+    # Enrichment fields — read by both citizen dashboard and officer FIR views
+    enrichment_status: EnrichmentStatus = EnrichmentStatus.PENDING
+    description_enriched: Optional[str] = None
     ai_interview_summary: Optional[str] = None
     suggested_ipc_sections: Optional[str] = None
     acknowledged_at: Optional[datetime] = None

@@ -1,6 +1,7 @@
 import httpx
 from fastapi import HTTPException
 from app.core.config import settings
+from app.core.circuit_breaker import groq_breaker
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "llama-3.3-70b-versatile"
@@ -48,8 +49,8 @@ INCIDENT_FOCUS = {
 }
 
 
-async def _call_groq(messages: list[dict]) -> str:
-    """Call Groq's OpenAI-compatible chat API."""
+async def _attempt_groq(messages: list[dict]) -> str:
+    """Single raw attempt — no retry, no circuit breaker logic here."""
     payload = {
         "model": GROQ_MODEL,
         "messages": messages,
@@ -59,24 +60,64 @@ async def _call_groq(messages: list[dict]) -> str:
         "Authorization": f"Bearer {settings.GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
-    try:
-        async with httpx.AsyncClient(timeout=45.0) as client:
-            response = await client.post(GROQ_URL, json=payload, headers=headers)
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="AI service timed out. Please try again.")
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=502, detail=f"AI service unreachable: {exc}")
+    async with httpx.AsyncClient(timeout=45.0) as client:
+        response = await client.post(GROQ_URL, json=payload, headers=headers)
 
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502,
-            detail=f"AI service error ({response.status_code}): {response.text[:300]}",
+        raise httpx.HTTPStatusError(
+            f"Groq {response.status_code}: {response.text[:200]}",
+            request=response.request,
+            response=response,
         )
 
     try:
         return response.json()["choices"][0]["message"]["content"]
     except (KeyError, IndexError) as exc:
-        raise HTTPException(status_code=502, detail=f"Unexpected AI response format: {exc}")
+        raise ValueError(f"Unexpected Groq response format: {exc}")
+
+
+async def _call_groq(messages: list[dict]) -> str:
+    """
+    Call Groq with circuit-breaker protection and one retry.
+
+    Flow:
+      1. Check breaker — raises 503 immediately if open
+      2. Try the call
+      3. On failure, retry once
+      4. If retry also fails, record failure to breaker, raise 502/504
+      5. On success, record success to breaker (resets failure count)
+    """
+    groq_breaker.check()
+
+    last_exc: Exception | None = None
+    for attempt in range(2):  # attempt 0 = first try, attempt 1 = one retry
+        try:
+            result = await _attempt_groq(messages)
+            groq_breaker.record_success()
+            return result
+        except httpx.TimeoutException as exc:
+            last_exc = exc
+        except httpx.RequestError as exc:
+            last_exc = exc
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+        except ValueError as exc:
+            # Malformed response — retrying won't help, fail immediately
+            groq_breaker.record_failure()
+            raise HTTPException(status_code=502, detail=str(exc))
+
+    # Both attempts failed
+    groq_breaker.record_failure()
+
+    if isinstance(last_exc, httpx.TimeoutException):
+        raise HTTPException(
+            status_code=504,
+            detail="AI service timed out. Your progress is saved — please try again shortly.",
+        )
+    raise HTTPException(
+        status_code=502,
+        detail="AI service is unreachable. Your progress is saved — please try again shortly.",
+    )
 
 
 def _gemini_to_openai(history: list[dict]) -> list[dict]:
@@ -147,6 +188,77 @@ async def conduct_interview(
         return {"question": clean, "done": True}
 
     return {"question": response.strip(), "done": False}
+
+
+async def enrichment_next_question(
+    incident_type: str,
+    description: str,
+    messages: list[dict],  # OpenAI format: [{role, content}]
+    turn_count: int,
+) -> str:
+    """Ask Groq for the next interview question given the conversation so far.
+    Messages must be in OpenAI format (role: assistant|user, content: str).
+    turn_count = number of citizen answers already saved.
+    """
+    focus = INCIDENT_FOCUS.get(incident_type, INCIDENT_FOCUS["other"])
+    system = INTERVIEW_SYSTEM_TEMPLATE.format(
+        incident_type=incident_type.replace("_", " ").title(),
+        description=description,
+        question_num=turn_count + 1,
+        focus=focus,
+    )
+    groq_messages = [{"role": "system", "content": system}]
+    groq_messages += messages  # already in OpenAI format — no conversion needed
+    groq_messages.append({
+        "role": "user",
+        "content": "Please ask your next question, or respond ###DONE### if you have enough information.",
+    })
+    response = await _call_groq(groq_messages)
+    return response.replace("###DONE###", "").strip()
+
+
+async def enrichment_synthesize(
+    incident_type: str,
+    description: str,
+    messages: list[dict],  # OpenAI format: [{role, content}]
+) -> dict:
+    """Generate enriched FIR summary + IPC sections from the completed 10-turn conversation."""
+    qa_text = "\n".join(
+        f"{'Interviewer' if m['role'] == 'assistant' else 'Complainant'}: {m['content']}"
+        for m in messages
+    )
+    prompt = f"""You are a senior police officer preparing a structured FIR case summary.
+
+Incident Type: {incident_type.replace('_', ' ').title()}
+Initial Complaint: {description}
+
+Interview Transcript:
+{qa_text}
+
+Produce the following in EXACTLY this format (English, professional, no extra text):
+
+SUMMARY:
+[3-5 sentences in third person. Cover: what happened, where, when, who was involved, key evidence mentioned, and what the complainant is seeking. Use "the complainant" to refer to the citizen.]
+
+IPC_SECTIONS:
+[List 3-5 IPC sections most applicable to the described facts. Format each as: Section X - Section Name]"""
+
+    groq_messages = [
+        {"role": "system", "content": "You are a senior police officer writing official FIR documentation."},
+        {"role": "user", "content": prompt},
+    ]
+    response = await _call_groq(groq_messages)
+
+    summary = ""
+    ipc = ""
+    if "SUMMARY:" in response and "IPC_SECTIONS:" in response:
+        parts = response.split("IPC_SECTIONS:")
+        summary = parts[0].replace("SUMMARY:", "").strip()
+        ipc = parts[1].strip()
+    else:
+        summary = response.strip()
+
+    return {"summary": summary, "ipc_sections": ipc}
 
 
 async def summarize_interview(

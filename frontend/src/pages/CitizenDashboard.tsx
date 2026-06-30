@@ -2,15 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getMyFIRs, type FIR } from '../api/fir';
+import { capture } from '../lib/posthog';
 import Overview from '../components/dashboard/Overview';
 import MyFIRs from '../components/dashboard/MyFIRs';
 import FIRDetail from '../components/dashboard/FIRDetail';
 import FileFIR from '../components/dashboard/FileFIR';
+import EnrichmentChat from '../components/dashboard/EnrichmentChat';
 import Profile from '../components/dashboard/Profile';
 import AiChat from '../components/dashboard/AiChat';
 import '../styles/dashboard.css';
 
-type View = 'overview' | 'my-firs' | 'detail' | 'file-fir' | 'profile';
+type View = 'overview' | 'my-firs' | 'detail' | 'file-fir' | 'enrichment' | 'profile';
 
 const NAV_ITEMS: { view: View; label: string; icon: ReactNode; disabled?: boolean }[] = [
   { view: 'overview', label: 'Overview', icon: (
@@ -37,6 +39,8 @@ export default function CitizenDashboard() {
   const { token, user, logout } = useAuth();
   const [view, setView] = useState<View>('overview');
   const [selectedFirId, setSelectedFirId] = useState<string | null>(null);
+  const [enrichmentFirId, setEnrichmentFirId] = useState<string | null>(null);
+  const [enrichmentFirNumber, setEnrichmentFirNumber] = useState<string>('');
   const [firs, setFirs] = useState<FIR[]>([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
@@ -63,16 +67,23 @@ export default function CitizenDashboard() {
     setView('detail');
   };
 
-  const handleFileFIRSuccess = (firNumber: string) => {
-    setSuccessMsg(`FIR ${firNumber} filed successfully. Track it under My FIRs.`);
+  const goToEnrichment = (firId: string, firNumber: string) => {
+    setEnrichmentFirId(firId);
+    setEnrichmentFirNumber(firNumber);
+    setView('enrichment');
+  };
+
+  // Called after FileFIR submits — drops citizen directly into enrichment chat
+  const handleFileFIRSuccess = (firId: string, firNumber: string) => {
+    capture('fir_filed', { fir_id: firId, fir_number: firNumber });
     fetchFIRs();
-    setView('my-firs');
-    setTimeout(() => setSuccessMsg(''), 6000);
+    goToEnrichment(firId, firNumber);
   };
 
   const navigate = (v: View) => {
     setView(v);
     if (v !== 'detail') setSelectedFirId(null);
+    if (v !== 'enrichment') { setEnrichmentFirId(null); setEnrichmentFirNumber(''); }
     setMobileOpen(false);
   };
 
@@ -108,7 +119,11 @@ export default function CitizenDashboard() {
           {NAV_ITEMS.map(item => (
             <button
               key={item.view}
-              className={`sidebar-item${view === item.view || (item.view === 'my-firs' && view === 'detail') ? ' active' : ''}${item.disabled ? ' disabled' : ''}`}
+              className={`sidebar-item${
+                view === item.view ||
+                (item.view === 'my-firs' && (view === 'detail' || view === 'enrichment'))
+                  ? ' active' : ''
+              }${item.disabled ? ' disabled' : ''}`}
               onClick={() => !item.disabled && navigate(item.view)}
               title={collapsed ? item.label : undefined}
             >
@@ -205,6 +220,27 @@ export default function CitizenDashboard() {
             firId={selectedFirId}
             onBack={() => navigate('my-firs')}
             onRefresh={fetchFIRs}
+            onStartEnrichment={goToEnrichment}
+          />
+        )}
+
+        {view === 'enrichment' && enrichmentFirId && (
+          <EnrichmentChat
+            firId={enrichmentFirId}
+            firNumber={enrichmentFirNumber}
+            onDone={() => {
+              fetchFIRs();
+              setSelectedFirId(enrichmentFirId);
+              setView('detail');
+              setEnrichmentFirId(null);
+              setEnrichmentFirNumber('');
+            }}
+            onLater={() => {
+              fetchFIRs();
+              setSuccessMsg(`FIR ${enrichmentFirNumber} filed successfully. Complete AI enrichment from My FIRs whenever you're ready.`);
+              navigate('my-firs');
+              setTimeout(() => setSuccessMsg(''), 8000);
+            }}
           />
         )}
 
@@ -225,8 +261,8 @@ export default function CitizenDashboard() {
           </>
         )}
 
-        {/* AI Help banner — shown on all views except detail/file-fir */}
-        {view !== 'detail' && view !== 'file-fir' && (
+        {/* AI Help banner — shown on main views only */}
+        {view !== 'detail' && view !== 'file-fir' && view !== 'enrichment' && (
           <div className="ai-help-banner" style={{ cursor: 'default' }}>
             <div className="ai-help-banner-body">
               <div className="ai-help-banner-icon">
@@ -243,8 +279,8 @@ export default function CitizenDashboard() {
           </div>
         )}
 
-        {/* Floating AI chat widget */}
-        <AiChat />
+        {/* Floating AI chat widget — hide during enrichment to avoid confusion */}
+        {view !== 'enrichment' && <AiChat />}
       </main>
     </div>
   );

@@ -7,7 +7,7 @@ from app.core.limiter import limiter
 from app.core.security import get_current_user, require_roles
 from app.models.user import User
 from app.models.fir import FIR, FIRStatusHistory
-from app.models.enums import FIRStatus, UserRole
+from app.models.enums import FIRStatus, UserRole, EnrichmentStatus
 from app.repositories import get_fir_repo, get_history_repo
 from app.repositories.fir_repository import FIRRepository
 from app.repositories.status_history_repository import StatusHistoryRepository
@@ -43,6 +43,9 @@ async def file_fir(
     history_repo: StatusHistoryRepository = Depends(get_history_repo),
     current_user: User = Depends(get_current_user),
 ):
+    # FIR is saved immediately — no Groq call here.
+    # enrichment_status defaults to PENDING; citizen starts enrichment separately
+    # via POST /fir/{id}/enrichment/start after receiving the FIR number.
     fir = FIR(
         fir_number=await fir_repo.generate_number(),
         citizen_id=current_user.id,
@@ -57,8 +60,6 @@ async def file_fir(
         complainant_address=payload.complainant_address,
         complainant_phone=payload.complainant_phone,
         witness_info=payload.witness_info,
-        ai_interview_summary=payload.ai_interview_summary,
-        suggested_ipc_sections=payload.suggested_ipc_sections,
     )
     await fir_repo.create(fir)
     await history_repo.create(FIRStatusHistory(
@@ -265,6 +266,12 @@ async def acknowledge_fir(
     fir.officer_id = current_user.id
     fir.acknowledged_at = datetime.utcnow()
     fir.updated_at = datetime.utcnow()
+
+    # Lock enrichment — citizen can no longer start or continue the AI interview.
+    # Only mark expired if enrichment wasn't already complete.
+    if fir.enrichment_status in (EnrichmentStatus.PENDING, EnrichmentStatus.IN_PROGRESS):
+        fir.enrichment_status = EnrichmentStatus.EXPIRED
+
     await fir_repo.update(fir)
     await history_repo.create(FIRStatusHistory(
         fir_id=fir.id,

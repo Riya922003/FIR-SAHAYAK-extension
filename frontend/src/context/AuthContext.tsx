@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import type { User } from '../api/auth';
 import { configureClient, API_URL } from '../api/client';
+import { identify, reset } from '../lib/posthog';
 
 interface AuthContextType {
   user: User | null;
@@ -33,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('fir_token', accessToken);
     localStorage.setItem('fir_refresh_token', refreshToken);
     localStorage.setItem('fir_user', JSON.stringify(userData));
+    identify(userData.id, { role: userData.role, name: userData.full_name });
   };
 
   const updateUser = (updated: Partial<User>) => {
@@ -45,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = useCallback(() => {
+    reset();
     setToken(null);
     setUser(null);
     localStorage.removeItem('fir_token');

@@ -26,6 +26,14 @@ class EscalationStatus(str, Enum):
     REDIRECTED = "redirected"
 
 
+class EnrichmentStatus(str, Enum):
+    PENDING = "pending"           # FIR filed, citizen hasn't started yet
+    IN_PROGRESS = "in_progress"   # citizen is actively in the Groq chat
+    COMPLETE = "complete"         # enrichment done, description_enriched saved
+    EXPIRED = "expired"           # 3-day window passed, officer acknowledged anyway
+    UNAVAILABLE = "unavailable"   # circuit was open every time citizen tried
+
+
 class IncidentType(str, Enum):
     THEFT = "theft"
     ASSAULT = "assault"

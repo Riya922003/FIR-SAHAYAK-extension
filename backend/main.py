@@ -9,7 +9,8 @@ from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import init_db, engine
 from app.core.limiter import limiter
-from app.routers import auth, fir, ai, admin, authority
+from app.core.circuit_breaker import groq_breaker
+from app.routers import auth, fir, ai, admin, authority, enrichment
 
 
 @asynccontextmanager
@@ -24,6 +25,25 @@ async def lifespan(app: FastAPI):
             ))
             await conn.execute(text(
                 "ALTER TABLE firs ADD COLUMN IF NOT EXISTS suggested_ipc_sections VARCHAR"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE firs ADD COLUMN IF NOT EXISTS enrichment_status VARCHAR NOT NULL DEFAULT 'pending'"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE firs ADD COLUMN IF NOT EXISTS description_enriched TEXT"
+            ))
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS ai_conversations (
+                    id VARCHAR PRIMARY KEY,
+                    fir_id VARCHAR NOT NULL UNIQUE REFERENCES firs(id),
+                    messages JSON NOT NULL DEFAULT '[]',
+                    turn_count INTEGER NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP NOT NULL,
+                    updated_at TIMESTAMP NOT NULL
+                )
+            """))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_ai_conversations_fir_id ON ai_conversations(fir_id)"
             ))
         print("[OK] Schema columns verified.")
     except Exception as e:
@@ -64,6 +84,7 @@ app.include_router(fir.router, prefix=API_PREFIX)
 app.include_router(ai.router, prefix=API_PREFIX)
 app.include_router(admin.router, prefix=API_PREFIX)
 app.include_router(authority.router, prefix=API_PREFIX)
+app.include_router(enrichment.router, prefix=API_PREFIX)
 
 
 @app.get("/", tags=["Health"])
@@ -78,4 +99,16 @@ async def root():
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "ok", "cors": "open", "build": "fd299ed-plus"}
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "db": db_status,
+        "groq_circuit": groq_breaker.state(),
+        "version": "2.0.0",
+    }

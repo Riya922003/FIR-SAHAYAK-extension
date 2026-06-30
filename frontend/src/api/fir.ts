@@ -10,6 +10,9 @@ export type IncidentType =
   | 'hit_and_run' | 'fraud' | 'cyber_crime' | 'property_damage'
   | 'domestic_violence' | 'other';
 
+export type EnrichmentStatus =
+  | 'pending' | 'in_progress' | 'complete' | 'expired' | 'unavailable';
+
 export interface FIR {
   id: string;
   fir_number: string;
@@ -23,8 +26,10 @@ export interface FIR {
   complainant_address: string;
   complainant_phone: string;
   witness_info?: string;
-  ai_interview_summary?: string;
+  enrichment_status: EnrichmentStatus;
+  description_enriched?: string;
   suggested_ipc_sections?: string;
+  ipc_sections?: string;
   station_id: string;
   reapply_count: number;
   created_at: string;
@@ -64,8 +69,24 @@ export interface FileFIRPayload {
   complainant_address: string;
   complainant_phone: string;
   witness_info?: string;
-  ai_interview_summary?: string;
-  suggested_ipc_sections?: string;
+}
+
+export interface EnrichmentStatusResult {
+  enrichment_status: EnrichmentStatus;
+  turn_count: number;
+  last_question?: string;
+  is_locked: boolean;
+}
+
+export interface EnrichmentStartResult {
+  question: string;
+  turn_count: number;
+}
+
+export interface EnrichmentMessageResult {
+  question?: string;
+  turn_count: number;
+  done: boolean;
 }
 
 export interface InterviewMessage {
@@ -176,6 +197,34 @@ export async function getNearbyStations(address: string): Promise<PoliceStation[
   return data;
 }
 
+export async function startEnrichment(token: string, firId: string): Promise<EnrichmentStartResult> {
+  const res = await apiFetch(token, `/api/v1/fir/${firId}/enrichment/start`, { method: 'POST' });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to start enrichment');
+  return data;
+}
+
+export async function sendEnrichmentMessage(
+  token: string,
+  firId: string,
+  answer: string,
+): Promise<EnrichmentMessageResult> {
+  const res = await apiFetch(token, `/api/v1/fir/${firId}/enrichment/message`, {
+    method: 'POST',
+    body: JSON.stringify({ answer }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to send enrichment message');
+  return data;
+}
+
+export async function getEnrichmentStatus(token: string, firId: string): Promise<EnrichmentStatusResult> {
+  const res = await apiFetch(token, `/api/v1/fir/${firId}/enrichment/status`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Failed to fetch enrichment status');
+  return data;
+}
+
 // ── Display helpers ───────────────────────────────────────────────────────────
 
 export const STATUS_LABELS: Record<FIRStatus, string> = {
@@ -198,6 +247,22 @@ export const STATUS_COLORS: Record<FIRStatus, string> = {
   rejected: '#ef4444',
   closed: '#64748b',
   escalated: '#f97316',
+};
+
+export const ENRICHMENT_LABELS: Record<EnrichmentStatus, string> = {
+  pending: 'Enrichment Pending',
+  in_progress: 'Enrichment In Progress',
+  complete: 'Enriched',
+  expired: 'Enrichment Expired',
+  unavailable: 'AI Unavailable',
+};
+
+export const ENRICHMENT_COLORS: Record<EnrichmentStatus, string> = {
+  pending: '#f59e0b',
+  in_progress: '#3b82f6',
+  complete: '#22c55e',
+  expired: '#94a3b8',
+  unavailable: '#94a3b8',
 };
 
 export const INCIDENT_LABELS: Record<IncidentType, string> = {

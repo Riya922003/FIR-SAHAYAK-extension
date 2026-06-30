@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import type React from 'react';
-import { type FIR, type FIRStatus, STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS } from '../../api/fir';
+import {
+  type FIR, type FIRStatus,
+  STATUS_LABELS, STATUS_COLORS, INCIDENT_LABELS,
+  ENRICHMENT_LABELS, ENRICHMENT_COLORS,
+} from '../../api/fir';
 
 interface Props {
   firs: FIR[];
@@ -71,40 +75,54 @@ export default function MyFIRs({ firs, loading, onViewFIR, onFileFIR }: Props) {
         </div>
       ) : (
         <div className="table-scroll-wrap">
-        <table className="fir-table">
-          <thead>
-            <tr>
-              <th>FIR Number</th>
-              <th>Type</th>
-              <th>Location</th>
-              <th>Incident Date</th>
-              <th>Filed On</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(fir => (
-              <tr
-                key={fir.id}
-                onClick={() => onViewFIR(fir.id)}
-                style={{ '--row-accent': STATUS_COLORS[fir.status] } as React.CSSProperties}
-              >
-                <td><strong className="fir-number">{fir.fir_number}</strong></td>
-                <td>{INCIDENT_LABELS[fir.incident_type]}</td>
-                <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {fir.incident_location}
-                </td>
-                <td>{new Date(fir.incident_date).toLocaleDateString('en-IN')}</td>
-                <td>{new Date(fir.created_at).toLocaleDateString('en-IN')}</td>
-                <td>
-                  <span className={`status-badge status-badge--${fir.status}`}>
-                    {STATUS_LABELS[fir.status]}
-                  </span>
-                </td>
+          <table className="fir-table">
+            <thead>
+              <tr>
+                <th>FIR Number</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Incident Date</th>
+                <th>Filed On</th>
+                <th>Status</th>
+                <th>AI Enrichment</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filtered.map(fir => {
+                const eColor = ENRICHMENT_COLORS[fir.enrichment_status];
+                return (
+                  <tr
+                    key={fir.id}
+                    onClick={() => onViewFIR(fir.id)}
+                    style={{ '--row-accent': STATUS_COLORS[fir.status] } as React.CSSProperties}
+                  >
+                    <td><strong className="fir-number">{fir.fir_number}</strong></td>
+                    <td>{INCIDENT_LABELS[fir.incident_type]}</td>
+                    <td style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {fir.incident_location}
+                    </td>
+                    <td>{new Date(fir.incident_date).toLocaleDateString('en-IN')}</td>
+                    <td>{new Date(fir.created_at).toLocaleDateString('en-IN')}</td>
+                    <td>
+                      <span className={`status-badge status-badge--${fir.status}`}>
+                        {STATUS_LABELS[fir.status]}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{
+                        fontSize: '0.7rem', fontWeight: 600, padding: '0.18rem 0.55rem',
+                        borderRadius: 999, border: `1px solid ${eColor}`,
+                        color: eColor, background: `${eColor}18`,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {ENRICHMENT_LABELS[fir.enrichment_status]}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
