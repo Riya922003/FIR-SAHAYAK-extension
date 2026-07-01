@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
@@ -6,7 +6,8 @@ import RegisterPage from './pages/RegisterPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import OfficerDashboard from './pages/OfficerDashboard';
 import AuthorityDashboard from './pages/AuthorityDashboard';
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, useEffect } from 'react';
+import posthog from 'posthog-js';
 
 /* ── Error Boundary — catches render errors and shows them instead of blank ── */
 interface EBState { hasError: boolean; message: string }
@@ -39,6 +40,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, EBState> {
     }
     return this.props.children;
   }
+}
+
+function PostHogPageviewTracker() {
+  const location = useLocation();
+  useEffect(() => {
+    posthog.capture('$pageview', { $current_url: window.location.href });
+  }, [location]);
+  return null;
 }
 
 function getHomeRoute(role: string): string {
@@ -99,6 +108,7 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <PostHogPageviewTracker />
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>

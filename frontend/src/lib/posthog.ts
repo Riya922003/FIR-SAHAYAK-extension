@@ -6,7 +6,7 @@ const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) ?? 'https
 if (key) {
   posthog.init(key, {
     api_host: host,
-    capture_pageview: true,
+    capture_pageview: false,
     capture_pageleave: true,
     autocapture: true,
     session_recording: {
