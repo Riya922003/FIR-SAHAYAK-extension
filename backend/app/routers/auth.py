@@ -28,7 +28,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")
+@limiter.limit("5/minute;10/hour")
 async def register(
     request: Request,
     payload: RegisterRequest,
@@ -51,7 +51,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("5/minute")
+@limiter.limit("5/minute;20/hour")
 async def login(
     request: Request,
     payload: LoginRequest,
@@ -100,7 +100,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
 
 
 @router.patch("/me/district", response_model=UserResponse)
+@limiter.limit("5/minute")
 async def set_my_district(
+    request: Request,
     payload: DistrictSetRequest,
     user_repo: UserRepository = Depends(get_user_repo),
     current_user: User = Depends(get_current_user),
@@ -115,7 +117,9 @@ async def set_my_district(
 
 
 @router.patch("/me/station", response_model=UserResponse)
+@limiter.limit("5/minute")
 async def set_my_station(
+    request: Request,
     payload: StationSetRequest,
     user_repo: UserRepository = Depends(get_user_repo),
     station_repo: StationRepository = Depends(get_station_repo),

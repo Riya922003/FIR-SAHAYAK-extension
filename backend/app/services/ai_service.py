@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 from fastapi import HTTPException
 from app.core.config import settings
@@ -105,6 +106,11 @@ async def _call_groq(messages: list[dict]) -> str:
             # Malformed response — retrying won't help, fail immediately
             groq_breaker.record_failure()
             raise HTTPException(status_code=502, detail=str(exc))
+
+        if attempt == 0:
+            # Brief backoff before retry — gives an overloaded Groq a moment to breathe.
+            # Retrying instantly under load just adds to the problem.
+            await asyncio.sleep(0.5)
 
     # Both attempts failed
     groq_breaker.record_failure()
