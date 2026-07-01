@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date, time
 from typing import Optional, List
-from sqlalchemy import Column, JSON
+from sqlalchemy import Column, JSON, String
 from sqlmodel import SQLModel, Field
 from app.models.enums import FIRStatus, EscalationStatus, IncidentType, EnrichmentStatus
 
@@ -56,7 +56,13 @@ class FIR(SQLModel, table=True):
     suggested_ipc_sections: Optional[str] = None
 
     # Enrichment fields
-    enrichment_status: EnrichmentStatus = Field(default=EnrichmentStatus.PENDING)
+    # sa_column=String bypasses SQLAlchemy's PostgreSQL ENUM type for this column,
+    # which stores lowercase values ('pending') that conflict with auto-generated
+    # ENUM names (PENDING). Pydantic handles the str→EnrichmentStatus coercion.
+    enrichment_status: EnrichmentStatus = Field(
+        default=EnrichmentStatus.PENDING,
+        sa_column=Column(String, nullable=False, server_default="pending"),
+    )
     # description holds the citizen's original text from the form (never overwritten)
     # description_enriched is set once the Groq interview summarises the conversation
     description_enriched: Optional[str] = None
